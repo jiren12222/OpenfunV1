@@ -454,8 +454,8 @@
         
         tokens = profiles.slice(0, 15).map((p, i) => ({
           address: p.tokenAddress,
-          name: p.name || 'Unknown',
-          symbol: p.symbol || '???',
+          name: p.name || p.symbol || 'Unknown',
+          symbol: p.symbol || p.name || p.tokenAddress?.slice(0,6) || '???',
           price: p.price || Math.random() * 0.001,
           marketCap: p.marketCap || Math.floor(Math.random() * 500000 + 10000),
           holders: p.holderCount || Math.floor(Math.random() * 5000 + 100),
@@ -493,8 +493,8 @@
           <div class="token-card-header">
             <img src="${t.image}" class="token-img" alt="${t.symbol}" onerror="this.src='https://via.placeholder.com/48/a78bfa/0a0a0a?text=${t.symbol[0]}'">
             <div class="token-info">
-              <h3>$${t.symbol}</h3>
-              <div class="symbol">${t.name}</div>
+              <h3>$${t.symbol || t.name.slice(0,6)}</h3>
+              <div class="symbol">${t.name || t.symbol || t.address.slice(0,8)}</div>
             </div>
             <div class="token-tags">
               <span class="tag ${tagClass}">${t.tag}</span>
