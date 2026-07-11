@@ -282,7 +282,7 @@
         <div class="vip-lock">🔒</div>
         <h2>VIP LOUNGE</h2>
         <p>Token-gated community access</p>
-        <div class="vip-holdings">HOLD 1,000+ <span>$TRENCHY</span> TO UNLOCK</div>
+        <div class="vip-holdings">COMPLETE 10+ TRADES TO UNLOCK</div>
         <div class="vip-status">
           <span>88 MEMBERS ONLINE</span>
           <span>LAST MSG: 2s AGO</span>
@@ -454,7 +454,7 @@
         
         tokens = profiles.slice(0, 15).map((p, i) => ({
           address: p.tokenAddress,
-          name: p.name || p.symbol || 'Unknown',
+          name: p.name || p.description?.split(' ')?.[0] || p.tokenAddress?.slice(0,8) || 'Unknown',
           symbol: p.symbol || p.name || p.tokenAddress?.slice(0,6) || '???',
           price: p.price || Math.random() * 0.001,
           marketCap: p.marketCap || Math.floor(Math.random() * 500000 + 10000),
