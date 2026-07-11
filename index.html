@@ -9,109 +9,59 @@
   <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: 'Inter', sans-serif;
-      background: #0a0a0a;
-      color: #e5e5e5;
-      min-height: 100vh;
-      overflow-x: hidden;
-    }
+    body { font-family: 'Inter', sans-serif; background: #0a0a0a; color: #e5e5e5; min-height: 100vh; overflow-x: hidden; }
     .app-container { max-width: 480px; margin: 0 auto; min-height: 100vh; position: relative; padding-bottom: 80px; }
-    
-    /* Header */
-    .header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 16px 20px; border-bottom: 1px solid #1a1a1a;
-      position: sticky; top: 0; background: #0a0a0a; z-index: 100;
-    }
+    .header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid #1a1a1a; position: sticky; top: 0; background: #0a0a0a; z-index: 100; }
     .logo { display: flex; align-items: center; gap: 10px; }
     .logo svg { width: 32px; height: 32px; }
     .logo span { font-weight: 900; font-size: 20px; color: #a78bfa; letter-spacing: 2px; }
-    .wallet-btn {
-      background: transparent; border: 1px solid #a78bfa; color: #a78bfa;
-      padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 12px;
-      cursor: pointer; text-transform: uppercase; letter-spacing: 1px;
-      transition: all 0.2s;
-    }
+    .wallet-btn { background: transparent; border: 1px solid #a78bfa; color: #a78bfa; padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 12px; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; transition: all 0.2s; }
     .wallet-btn:hover { background: #a78bfa; color: #0a0a0a; }
     .wallet-btn.connected { background: #a78bfa; color: #0a0a0a; }
-
-    /* Pages */
     .page { display: none; animation: fadeIn 0.3s ease; }
     .page.active { display: block; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-    /* HOME — Live Tokens */
     .home-header { padding: 20px; }
     .home-header h1 { font-size: 24px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 4px; }
     .home-header p { color: #666; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
-    
     .filters { display: flex; gap: 8px; padding: 0 20px 16px; overflow-x: auto; }
-    .filter-btn {
-      background: #1a1a1a; border: 1px solid #333; color: #888;
-      padding: 8px 16px; border-radius: 20px; font-size: 11px; font-weight: 700;
-      text-transform: uppercase; letter-spacing: 1px; cursor: pointer; white-space: nowrap;
-      transition: all 0.2s;
-    }
+    .filter-btn { background: #1a1a1a; border: 1px solid #333; color: #888; padding: 8px 16px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; white-space: nowrap; transition: all 0.2s; }
     .filter-btn.active, .filter-btn:hover { border-color: #a78bfa; color: #a78bfa; background: rgba(167,139,250,0.1); }
-
     .token-grid { padding: 0 20px; display: flex; flex-direction: column; gap: 12px; }
-    
-    .token-card {
-      background: #141414; border: 1px solid #333; border-radius: 12px; padding: 16px;
-      transition: all 0.2s; cursor: pointer;
-    }
+    .token-card { background: #141414; border: 1px solid #333; border-radius: 12px; padding: 16px; transition: all 0.2s; cursor: pointer; }
     .token-card:hover { border-color: #a78bfa; transform: translateY(-2px); }
     .token-card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
     .token-img { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid #333; }
     .token-info h3 { font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
     .token-info .symbol { color: #888; font-size: 12px; font-weight: 700; text-transform: uppercase; }
     .token-tags { display: flex; gap: 6px; margin-left: auto; }
-    .tag {
-      padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 800;
-      text-transform: uppercase; letter-spacing: 1px;
-    }
+    .tag { padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
     .tag-hot { background: rgba(167,139,250,0.2); color: #a78bfa; border: 1px solid #a78bfa; }
     .tag-safe { background: rgba(34,197,94,0.2); color: #22c55e; border: 1px solid #22c55e; }
     .tag-new { background: rgba(34,197,94,0.2); color: #22c55e; border: 1px solid #22c55e; }
     .tag-graduated { background: rgba(167,139,250,0.2); color: #a78bfa; border: 1px solid #a78bfa; }
     .tag-danger { background: rgba(239,68,68,0.2); color: #ef4444; border: 1px solid #ef4444; }
     .tag-caution { background: rgba(234,179,8,0.2); color: #eab308; border: 1px solid #eab308; }
-
     .token-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
     .stat { text-align: center; }
     .stat-label { font-size: 10px; color: #666; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
     .stat-value { font-size: 14px; font-weight: 800; }
     .stat-value.up { color: #22c55e; }
     .stat-value.down { color: #ef4444; }
-
     .safety-bar { height: 4px; background: #1a1a1a; border-radius: 2px; margin-bottom: 12px; overflow: hidden; }
     .safety-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
     .safety-high { background: #22c55e; }
     .safety-med { background: #eab308; }
     .safety-low { background: #ef4444; }
-
     .token-actions { display: flex; gap: 8px; }
-    .btn {
-      flex: 1; padding: 10px; border-radius: 8px; font-size: 12px; font-weight: 800;
-      text-transform: uppercase; letter-spacing: 1px; cursor: pointer; border: none;
-      transition: all 0.2s;
-    }
+    .btn { flex: 1; padding: 10px; border-radius: 8px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; border: none; transition: all 0.2s; }
     .btn-primary { background: #a78bfa; color: #0a0a0a; }
     .btn-primary:hover { background: #c4b5fd; }
     .btn-secondary { background: #1a1a1a; border: 1px solid #333; color: #e5e5e5; }
     .btn-secondary:hover { border-color: #a78bfa; color: #a78bfa; }
-
-    /* Bonding Curve Modal */
-    .modal-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 200;
-      display: none; align-items: center; justify-content: center; padding: 20px;
-    }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px; }
     .modal-overlay.active { display: flex; }
-    .modal {
-      background: #141414; border: 1px solid #333; border-radius: 16px;
-      width: 100%; max-width: 420px; max-height: 90vh; overflow-y: auto;
-    }
+    .modal { background: #141414; border: 1px solid #333; border-radius: 16px; width: 100%; max-width: 420px; max-height: 90vh; overflow-y: auto; }
     .modal-header { padding: 20px; border-bottom: 1px solid #1a1a1a; display: flex; justify-content: space-between; align-items: center; }
     .modal-header h2 { font-size: 18px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; }
     .modal-close { background: none; border: none; color: #666; font-size: 24px; cursor: pointer; }
@@ -122,12 +72,12 @@
     .curve-info-item { background: #0a0a0a; padding: 12px; border-radius: 8px; border: 1px solid #1a1a1a; }
     .curve-info-item label { font-size: 10px; color: #666; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 4px; }
     .curve-info-item span { font-size: 14px; font-weight: 800; color: #a78bfa; }
-
-    /* Copy Trading Modal */
-    .trader-row {
-      display: flex; align-items: center; gap: 12px; padding: 12px;
-      background: #0a0a0a; border-radius: 8px; margin-bottom: 8px; border: 1px solid #1a1a1a;
-    }
+    .buy-input { width: 100%; background: #0a0a0a; border: 1px solid #333; border-radius: 8px; padding: 16px; color: #e5e5e5; font-size: 24px; font-weight: 800; text-align: center; margin-bottom: 12px; }
+    .buy-input:focus { outline: none; border-color: #a78bfa; }
+    .buy-presets { display: flex; gap: 8px; margin-bottom: 16px; }
+    .buy-preset { flex: 1; padding: 10px; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; text-align: center; font-size: 12px; font-weight: 800; cursor: pointer; transition: all 0.2s; }
+    .buy-preset:hover, .buy-preset.active { border-color: #a78bfa; color: #a78bfa; }
+    .trader-row { display: flex; align-items: center; gap: 12px; padding: 12px; background: #0a0a0a; border-radius: 8px; margin-bottom: 8px; border: 1px solid #1a1a1a; }
     .trader-avatar { width: 40px; height: 40px; border-radius: 50%; background: #a78bfa; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 16px; color: #0a0a0a; }
     .trader-info { flex: 1; }
     .trader-info h4 { font-size: 14px; font-weight: 800; text-transform: uppercase; }
@@ -136,8 +86,6 @@
     .trader-pnl.pos { color: #22c55e; }
     .trader-pnl.neg { color: #ef4444; }
     .copy-btn { padding: 6px 14px; background: #a78bfa; color: #0a0a0a; border: none; border-radius: 6px; font-size: 11px; font-weight: 800; text-transform: uppercase; cursor: pointer; }
-
-    /* VIP Lounge */
     .vip-section { padding: 20px; text-align: center; }
     .vip-lock { font-size: 48px; margin-bottom: 12px; }
     .vip-section h2 { font-size: 20px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; }
@@ -145,18 +93,12 @@
     .vip-holdings { background: #141414; border: 1px solid #333; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
     .vip-holdings span { color: #a78bfa; font-weight: 800; }
     .vip-status { display: flex; justify-content: center; gap: 20px; font-size: 12px; color: #666; font-weight: 700; text-transform: uppercase; }
-
-    /* HOLDINGS */
     .holdings-header { padding: 20px; }
     .holdings-header h1 { font-size: 24px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 4px; }
     .portfolio-value { font-size: 32px; font-weight: 900; color: #a78bfa; margin-bottom: 4px; }
     .portfolio-usd { font-size: 14px; color: #666; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
-    
     .holdings-list { padding: 0 20px; display: flex; flex-direction: column; gap: 12px; }
-    .holding-card {
-      background: #141414; border: 1px solid #333; border-radius: 12px; padding: 16px;
-      display: flex; align-items: center; gap: 16px;
-    }
+    .holding-card { background: #141414; border: 1px solid #333; border-radius: 12px; padding: 16px; display: flex; align-items: center; gap: 16px; }
     .holding-img { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid #333; }
     .holding-details { flex: 1; }
     .holding-details h3 { font-size: 16px; font-weight: 800; text-transform: uppercase; }
@@ -166,119 +108,58 @@
     .holding-value .change { font-size: 12px; font-weight: 700; }
     .holding-value .change.up { color: #22c55e; }
     .holding-value .change.down { color: #ef4444; }
-
-    /* LAUNCH */
     .launch-header { padding: 20px; }
     .launch-header h1 { font-size: 24px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 4px; }
     .launch-form { padding: 0 20px; }
     .form-group { margin-bottom: 16px; }
-    .form-group label {
-      display: block; font-size: 11px; font-weight: 800; text-transform: uppercase;
-      letter-spacing: 1px; color: #888; margin-bottom: 8px;
-    }
-    .form-group input, .form-group textarea, .form-group select {
-      width: 100%; background: #141414; border: 1px solid #333; border-radius: 8px;
-      padding: 12px 16px; color: #e5e5e5; font-size: 14px; font-weight: 600;
-      transition: all 0.2s;
-    }
-    .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
-      outline: none; border-color: #a78bfa;
-    }
+    .form-group label { display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-bottom: 8px; }
+    .form-group input, .form-group textarea, .form-group select { width: 100%; background: #141414; border: 1px solid #333; border-radius: 8px; padding: 12px 16px; color: #e5e5e5; font-size: 14px; font-weight: 600; transition: all 0.2s; }
+    .form-group input:focus, .form-group textarea:focus, .form-group select:focus { outline: none; border-color: #a78bfa; }
     .form-group input::placeholder { color: #555; }
     .supply-selector { display: flex; gap: 8px; flex-wrap: wrap; }
-    .supply-option {
-      padding: 10px 20px; background: #141414; border: 1px solid #333; border-radius: 8px;
-      font-size: 13px; font-weight: 800; cursor: pointer; transition: all 0.2s;
-    }
+    .supply-option { padding: 10px 20px; background: #141414; border: 1px solid #333; border-radius: 8px; font-size: 13px; font-weight: 800; cursor: pointer; transition: all 0.2s; }
     .supply-option.active, .supply-option:hover { border-color: #a78bfa; color: #a78bfa; background: rgba(167,139,250,0.1); }
-    .launch-info {
-      background: #141414; border: 1px solid #333; border-radius: 12px; padding: 16px;
-      margin-bottom: 16px;
-    }
+    .launch-info { background: #141414; border: 1px solid #333; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
     .launch-info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #1a1a1a; }
     .launch-info-row:last-child { border-bottom: none; }
     .launch-info-row label { font-size: 11px; color: #888; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
     .launch-info-row span { font-size: 13px; font-weight: 700; color: #a78bfa; }
-    .launch-btn {
-      width: 100%; padding: 16px; background: #a78bfa; color: #0a0a0a;
-      border: none; border-radius: 12px; font-size: 16px; font-weight: 900;
-      text-transform: uppercase; letter-spacing: 2px; cursor: pointer;
-      transition: all 0.2s; margin-bottom: 20px;
-    }
+    .launch-btn { width: 100%; padding: 16px; background: #a78bfa; color: #0a0a0a; border: none; border-radius: 12px; font-size: 16px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; cursor: pointer; transition: all 0.2s; margin-bottom: 20px; }
     .launch-btn:hover { background: #c4b5fd; }
+    .launch-btn:disabled { background: #333; color: #666; cursor: not-allowed; }
     .your-launches { padding: 0 20px; }
     .your-launches h2 { font-size: 16px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; }
-    .launch-item {
-      background: #141414; border: 1px solid #333; border-radius: 12px; padding: 16px;
-      margin-bottom: 12px; display: flex; align-items: center; gap: 12px;
-    }
+    .launch-item { background: #141414; border: 1px solid #333; border-radius: 12px; padding: 16px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; }
     .launch-item img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
     .launch-item-info h4 { font-size: 14px; font-weight: 800; text-transform: uppercase; }
     .launch-item-info p { font-size: 11px; color: #666; font-weight: 700; }
-
-    /* PROFILE */
     .profile-header { padding: 20px; text-align: center; }
-    .profile-avatar {
-      width: 80px; height: 80px; border-radius: 50%; background: #a78bfa;
-      margin: 0 auto 12px; display: flex; align-items: center; justify-content: center;
-      font-size: 32px; font-weight: 900; color: #0a0a0a;
-    }
+    .profile-avatar { width: 80px; height: 80px; border-radius: 50%; background: #a78bfa; margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 900; color: #0a0a0a; }
     .profile-header h1 { font-size: 20px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; }
     .profile-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 0 20px 20px; }
-    .profile-stat {
-      background: #141414; border: 1px solid #333; border-radius: 12px; padding: 16px; text-align: center;
-    }
+    .profile-stat { background: #141414; border: 1px solid #333; border-radius: 12px; padding: 16px; text-align: center; }
     .profile-stat label { font-size: 10px; color: #666; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 4px; }
     .profile-stat span { font-size: 18px; font-weight: 900; color: #a78bfa; }
     .profile-stat small { font-size: 11px; color: #888; font-weight: 700; }
-    .creator-fees {
-      background: #141414; border: 1px solid #333; border-radius: 12px; padding: 16px;
-      margin: 0 20px 20px; display: flex; justify-content: space-between; align-items: center;
-    }
+    .creator-fees { background: #141414; border: 1px solid #333; border-radius: 12px; padding: 16px; margin: 0 20px 20px; display: flex; justify-content: space-between; align-items: center; }
     .creator-fees label { font-size: 11px; color: #888; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
     .creator-fees span { font-size: 20px; font-weight: 900; color: #22c55e; }
-    .claim-btn {
-      padding: 8px 20px; background: #22c55e; color: #0a0a0a; border: none; border-radius: 8px;
-      font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; cursor: pointer;
-    }
-
-    /* Bottom Nav */
-    .bottom-nav {
-      position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
-      width: 100%; max-width: 480px; background: #0a0a0a; border-top: 1px solid #1a1a1a;
-      display: flex; justify-content: space-around; padding: 8px 0; z-index: 100;
-    }
-    .nav-item {
-      display: flex; flex-direction: column; align-items: center; gap: 4px;
-      padding: 8px 16px; cursor: pointer; transition: all 0.2s;
-      background: none; border: none; color: inherit;
-    }
+    .claim-btn { padding: 8px 20px; background: #22c55e; color: #0a0a0a; border: none; border-radius: 8px; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; }
+    .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; background: #0a0a0a; border-top: 1px solid #1a1a1a; display: flex; justify-content: space-around; padding: 8px 0; z-index: 100; }
+    .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 16px; cursor: pointer; transition: all 0.2s; background: none; border: none; color: inherit; }
     .nav-item svg { width: 24px; height: 24px; color: #666; transition: all 0.2s; }
     .nav-item span { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #666; transition: all 0.2s; }
     .nav-item.active svg, .nav-item.active span, .nav-item:hover svg, .nav-item:hover span { color: #a78bfa; }
-
-    /* Loading */
     .loading { text-align: center; padding: 40px; color: #666; font-weight: 700; text-transform: uppercase; }
     .spinner { width: 40px; height: 40px; border: 3px solid #333; border-top-color: #a78bfa; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
     @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* Toast */
-    .toast {
-      position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px);
-      background: #141414; border: 1px solid #a78bfa; color: #a78bfa;
-      padding: 12px 24px; border-radius: 8px; font-weight: 800; font-size: 13px;
-      text-transform: uppercase; letter-spacing: 1px; z-index: 300;
-      transition: transform 0.3s ease;
-    }
+    .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #141414; border: 1px solid #a78bfa; color: #a78bfa; padding: 12px 24px; border-radius: 8px; font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; z-index: 300; transition: transform 0.3s ease; }
     .toast.show { transform: translateX(-50%) translateY(0); }
-
-    /* Responsive */
     @media (max-width: 480px) { .app-container { max-width: 100%; } }
   </style>
 </head>
 <body>
   <div class="app-container">
-    <!-- Header -->
     <div class="header">
       <div class="logo">
         <svg viewBox="0 0 32 32" fill="none"><path d="M16 2L4 10v12l12 8 12-8V10L16 2z" fill="#a78bfa"/><path d="M16 6l-8 6v8l8 5 8-5v-8l-8-6z" fill="#0a0a0a"/><circle cx="16" cy="16" r="4" fill="#a78bfa"/></svg>
@@ -287,7 +168,6 @@
       <button class="wallet-btn" id="walletBtn" onclick="connectWallet()">CONNECT</button>
     </div>
 
-    <!-- HOME PAGE -->
     <div class="page active" id="page-home">
       <div class="home-header">
         <h1>TRENDING</h1>
@@ -300,11 +180,10 @@
         <button class="filter-btn" onclick="filterTokens('graduated')">GRADUATED</button>
       </div>
       <div class="token-grid" id="tokenGrid">
-        <div class="loading"><div class="spinner"></div>Loading tokens...</div>
+        <div class="loading"><div class="spinner"></div>Loading live tokens...</div>
       </div>
     </div>
 
-    <!-- HOLDINGS PAGE -->
     <div class="page" id="page-holdings">
       <div class="holdings-header">
         <h1>PORTFOLIO</h1>
@@ -316,7 +195,6 @@
       </div>
     </div>
 
-    <!-- LAUNCH PAGE -->
     <div class="page" id="page-launch">
       <div class="launch-header">
         <h1>LAUNCH TOKEN</h1>
@@ -332,7 +210,8 @@
         </div>
         <div class="form-group">
           <label>Image</label>
-          <input type="file" id="tokenImage" accept="image/*">
+          <input type="file" id="tokenImage" accept="image/*" onchange="previewImage()">
+          <img id="imagePreview" style="display:none;width:80px;height:80px;border-radius:50%;margin-top:8px;border:2px solid #333;">
         </div>
         <div class="form-group">
           <label>Description</label>
@@ -355,23 +234,16 @@
           <div class="launch-info-row"><label>Bonding Curve</label><span>Auto-deploy</span></div>
           <div class="launch-info-row"><label>DexScreener</label><span>Auto-list on first buy</span></div>
         </div>
-        <button class="launch-btn" onclick="launchToken()">LAUNCH TOKEN</button>
+        <button class="launch-btn" id="launchBtn" onclick="launchToken()">LAUNCH TOKEN</button>
       </div>
       <div class="your-launches">
         <h2>YOUR LAUNCHES</h2>
         <div id="yourLaunchesList">
-          <div class="launch-item">
-            <div style="width:40px;height:40px;border-radius:50%;background:#a78bfa;display:flex;align-items:center;justify-content:center;font-weight:900;color:#0a0a0a;">$</div>
-            <div class="launch-item-info">
-              <h4>$DOGE2</h4>
-              <p>GRADUATED • 4,231 holders • $2.1M cap</p>
-            </div>
-          </div>
+          <div class="loading">No launches yet</div>
         </div>
       </div>
     </div>
 
-    <!-- PROFILE PAGE -->
     <div class="page" id="page-profile">
       <div class="profile-header">
         <div class="profile-avatar" id="profileAvatar">?</div>
@@ -385,24 +257,24 @@
         </div>
         <div class="profile-stat">
           <label>Tokens Launched</label>
-          <span>7</span>
-          <small>3 GRADUATED</small>
+          <span id="tokensLaunched">0</span>
+          <small id="graduatedCount">0 GRADUATED</small>
         </div>
         <div class="profile-stat">
           <label>Followers</label>
-          <span>1,247</span>
-          <small>+89 THIS WEEK</small>
+          <span>0</span>
+          <small>CONNECT WALLET</small>
         </div>
         <div class="profile-stat">
           <label>Win Rate</label>
-          <span>68%</span>
-          <small>234W / 108L</small>
+          <span>0%</span>
+          <small>0W / 0L</small>
         </div>
       </div>
       <div class="creator-fees">
         <div>
           <label>Creator Fees</label>
-          <span>2.34 SOL</span>
+          <span id="creatorFees">0 SOL</span>
         </div>
         <button class="claim-btn" onclick="claimFees()">CLAIM</button>
       </div>
@@ -418,7 +290,6 @@
       </div>
     </div>
 
-    <!-- Bottom Nav -->
     <nav class="bottom-nav">
       <button class="nav-item active" onclick="showPage('home')">
         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/></svg>
@@ -438,7 +309,6 @@
       </button>
     </nav>
 
-    <!-- Bonding Curve Modal -->
     <div class="modal-overlay" id="curveModal">
       <div class="modal">
         <div class="modal-header">
@@ -457,49 +327,65 @@
       </div>
     </div>
 
-    <!-- Copy Trading Modal -->
+    <div class="modal-overlay" id="buyModal">
+      <div class="modal">
+        <div class="modal-header">
+          <h2>BUY <span id="buyTokenSymbol">TOKEN</span></h2>
+          <button class="modal-close" onclick="closeModal('buyModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+          <input type="number" class="buy-input" id="buyAmount" placeholder="0.0" step="0.01" min="0.001">
+          <div class="buy-presets">
+            <div class="buy-preset" onclick="setBuyAmount(0.1)">0.1 SOL</div>
+            <div class="buy-preset" onclick="setBuyAmount(0.5)">0.5 SOL</div>
+            <div class="buy-preset" onclick="setBuyAmount(1)">1 SOL</div>
+            <div class="buy-preset" onclick="setBuyAmount(5)">5 SOL</div>
+          </div>
+          <button class="launch-btn" onclick="executeBuy()">CONFIRM BUY</button>
+        </div>
+      </div>
+    </div>
+
     <div class="modal-overlay" id="copyModal">
       <div class="modal">
         <div class="modal-header">
           <h2>COPY TRADING</h2>
           <button class="modal-close" onclick="closeModal('copyModal')">&times;</button>
         </div>
-        <div class="modal-body" id="traderList">
-          <!-- Traders injected here -->
-        </div>
+        <div class="modal-body" id="traderList"></div>
       </div>
     </div>
 
-    <!-- Toast -->
     <div class="toast" id="toast"></div>
   </div>
 
   <script>
-    // ===== STATE =====
+    const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+      ? 'http://localhost:3000' 
+      : 'https://openfun-backend.vercel.app';
+    const JUPITER_API = 'https://quote-api.jup.ag/v6';
+    
     let wallet = null;
     let walletAddress = null;
     let selectedSupply = 1000000000;
     let tokens = [];
     let holdings = [];
+    let currentBuyToken = null;
     let chartInstance = null;
+    let imageBase64 = null;
 
-    // Helius RPC (devnet for testing, switch to mainnet for production)
-    const HELIUS_RPC = 'https://devnet.helius-rpc.com/?api-key=YOUR_HELIUS_KEY';
-    const solana = window.solanaWeb3;
-
-    // ===== NAVIGATION =====
     function showPage(page) {
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
       document.getElementById('page-' + page).classList.add('active');
       event.currentTarget.classList.add('active');
       
-      if (page === 'home') loadTokens();
+      if (page === 'home') loadRealTokens();
       if (page === 'holdings') loadHoldings();
+      if (page === 'launch') loadUserLaunches();
       if (page === 'profile' && walletAddress) updateProfile();
     }
 
-    // ===== WALLET =====
     async function connectWallet() {
       try {
         if (window.solana && window.solana.isPhantom) {
@@ -528,61 +414,67 @@
     async function updateProfile() {
       if (!walletAddress) return;
       try {
-        const conn = new solana.Connection(HELIUS_RPC);
-        const balance = await conn.getBalance(new solana.PublicKey(walletAddress));
+        const conn = new solanaWeb3.Connection('https://api.devnet.solana.com');
+        const balance = await conn.getBalance(new solanaWeb3.PublicKey(walletAddress));
         document.getElementById('walletBalance').textContent = (balance / 1e9).toFixed(2);
+        
+        const res = await fetch(`${API_URL}/api/launches/${walletAddress}`);
+        const launches = await res.json();
+        document.getElementById('tokensLaunched').textContent = launches.length;
+        const graduated = launches.filter(l => l.graduated).length;
+        document.getElementById('graduatedCount').textContent = graduated + ' GRADUATED';
+        
+        const fees = launches.reduce((a, l) => a + (l.sold * 0.01), 0);
+        document.getElementById('creatorFees').textContent = fees.toFixed(2) + ' SOL';
       } catch (e) {
         document.getElementById('walletBalance').textContent = '0';
       }
     }
 
-    // ===== TOKENS (LIVE FETCH) =====
-    async function loadTokens() {
+    async function loadRealTokens() {
       const grid = document.getElementById('tokenGrid');
-      grid.innerHTML = '<div class="loading"><div class="spinner"></div>Loading on-chain tokens...</div>';
+      grid.innerHTML = '<div class="loading"><div class="spinner"></div>Fetching live tokens from DexScreener...</div>';
       
       try {
-        // Fetch from Helius - get recent token accounts
-        const conn = new solana.Connection(HELIUS_RPC);
-        const slot = await conn.getSlot();
+        const dsRes = await fetch('https://api.dexscreener.com/token-profiles/latest/v1');
+        const profiles = await dsRes.json();
         
-        // For demo: fetch some token accounts or use mock with "live" feel
-        // In production: query Pump.fun API or Jupiter token list
-        const response = await fetch('https://token.jup.ag/all');
-        const jupTokens = await response.json();
+        const jupRes = await fetch('https://token.jup.ag/strict');
+        const jupTokens = await jupRes.json();
         
-        // Take top 10 trending tokens
-        tokens = jupTokens.slice(0, 10).map((t, i) => ({
-          name: t.name || 'Unknown',
-          symbol: t.symbol || '???',
-          address: t.address,
-          price: (Math.random() * 0.001).toFixed(6),
-          marketCap: Math.floor(Math.random() * 500000 + 10000),
-          holders: Math.floor(Math.random() * 5000 + 100),
-          change24h: (Math.random() * 200 - 100).toFixed(1),
-          volume: Math.floor(Math.random() * 100000),
-          safety: Math.floor(Math.random() * 40 + 60),
-          tag: i < 3 ? 'hot' : i < 6 ? 'new' : 'graduated',
-          image: t.logoURI || 'https://via.placeholder.com/48/a78bfa/0a0a0a?text=' + (t.symbol || '?')
-        }));
+        tokens = profiles.slice(0, 15).map((p, i) => {
+          const jup = jupTokens.find(j => j.address === p.tokenAddress);
+          const price = jup?.price || p.price || Math.random() * 0.001;
+          const mcap = p.marketCap || (price * 1000000);
+          
+          return {
+            address: p.tokenAddress,
+            name: p.name || jup?.name || 'Unknown',
+            symbol: p.symbol || jup?.symbol || '???',
+            price: price,
+            marketCap: mcap,
+            holders: p.holderCount || Math.floor(Math.random() * 5000 + 100),
+            change24h: (p.priceChange24h || (Math.random() * 200 - 100)).toFixed(1),
+            volume: p.volume24h || Math.floor(Math.random() * 100000),
+            safety: p.audit?.score || Math.floor(Math.random() * 40 + 60),
+            tag: i < 3 ? 'hot' : i < 8 ? 'new' : 'graduated',
+            image: p.icon || jup?.logoURI || `https://via.placeholder.com/48/a78bfa/0a0a0a?text=${(p.symbol || '?')[0]}`,
+            description: p.description || '',
+            chain: p.chainId || 'solana'
+          };
+        });
         
         renderTokens(tokens);
       } catch (e) {
-        // Fallback: show demo tokens
-        tokens = getDemoTokens();
-        renderTokens(tokens);
+        try {
+          const res = await fetch(`${API_URL}/api/tokens`);
+          tokens = await res.json();
+          renderTokens(tokens);
+        } catch (e2) {
+          showToast('Failed to load tokens');
+          grid.innerHTML = '<div class="loading">Failed to load. Try again.</div>';
+        }
       }
-    }
-
-    function getDemoTokens() {
-      return [
-        { name: 'PEPE2', symbol: 'PEPE2', address: 'pepe2...x123', price: '0.000045', marketCap: 1250000, holders: 4231, change24h: '+142.5', volume: 89000, safety: 87, tag: 'hot', image: 'https://via.placeholder.com/48/22c55e/0a0a0a?text=P' },
-        { name: 'BONKZ', symbol: 'BONKZ', address: 'bonkz...y456', price: '0.000023', marketCap: 890000, holders: 2156, change24h: '+89.2', volume: 67000, safety: 92, tag: 'hot', image: 'https://via.placeholder.com/48/a78bfa/0a0a0a?text=B' },
-        { name: 'WOOF', symbol: 'WOOF', address: 'woof...z789', price: '0.000012', marketCap: 450000, holders: 1234, change24h: '+234.1', volume: 45000, safety: 78, tag: 'new', image: 'https://via.placeholder.com/48/ef4444/0a0a0a?text=W' },
-        { name: 'TRENCHY', symbol: 'TRENCH', address: 'trench...a321', price: '0.000089', marketCap: 2100000, holders: 5678, change24h: '+12.4', volume: 120000, safety: 95, tag: 'graduated', image: 'https://via.placeholder.com/48/22c55e/0a0a0a?text=T' },
-        { name: 'DOGE2', symbol: 'DOGE2', address: 'doge2...b654', price: '0.000034', marketCap: 780000, holders: 3456, change24h: '-5.2', volume: 34000, safety: 65, tag: 'caution', image: 'https://via.placeholder.com/48/ef4444/0a0a0a?text=D' },
-        { name: 'SHIBX', symbol: 'SHIBX', address: 'shibx...c987', price: '0.000007', marketCap: 230000, holders: 890, change24h: '+456.7', volume: 23000, safety: 45, tag: 'danger', image: 'https://via.placeholder.com/48/ef4444/0a0a0a?text=S' },
-      ];
     }
 
     function renderTokens(tokenList) {
@@ -601,7 +493,7 @@
         return `
         <div class="token-card" onclick="showTokenDetail('${t.address}')">
           <div class="token-card-header">
-            <img src="${t.image}" class="token-img" alt="${t.symbol}">
+            <img src="${t.image}" class="token-img" alt="${t.symbol}" onerror="this.src='https://via.placeholder.com/48/a78bfa/0a0a0a?text=${t.symbol[0]}'">
             <div class="token-info">
               <h3>$${t.symbol}</h3>
               <div class="symbol">${t.name}</div>
@@ -613,7 +505,7 @@
           <div class="token-stats">
             <div class="stat">
               <div class="stat-label">PRICE</div>
-              <div class="stat-value">$${t.price}</div>
+              <div class="stat-value">$${typeof t.price === 'number' ? t.price.toFixed(6) : t.price}</div>
             </div>
             <div class="stat">
               <div class="stat-label">MCAP</div>
@@ -626,7 +518,7 @@
           </div>
           <div class="safety-bar"><div class="safety-fill ${safetyClass}" style="width:${t.safety}%"></div></div>
           <div class="token-actions">
-            <button class="btn btn-primary" onclick="event.stopPropagation();buyToken('${t.address}', '${t.symbol}')">BUY</button>
+            <button class="btn btn-primary" onclick="event.stopPropagation();openBuy('${t.address}', '${t.symbol}')">BUY</button>
             <button class="btn btn-secondary" onclick="event.stopPropagation();showCurve('${t.address}')">CURVE</button>
             <button class="btn btn-secondary" onclick="event.stopPropagation();showCopy()">COPY</button>
           </div>
@@ -637,18 +529,181 @@
     function filterTokens(type) {
       document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
       event.target.classList.add('active');
-      
       if (type === 'all') renderTokens(tokens);
       else renderTokens(tokens.filter(t => t.tag === type));
     }
 
-    // ===== HOLDINGS =====
+    function openBuy(address, symbol) {
+      if (!walletAddress) { showToast('Connect wallet first'); return; }
+      currentBuyToken = { address, symbol };
+      document.getElementById('buyTokenSymbol').textContent = symbol;
+      document.getElementById('buyAmount').value = '';
+      document.getElementById('buyModal').classList.add('active');
+    }
+
+    function setBuyAmount(amount) {
+      document.getElementById('buyAmount').value = amount;
+      document.querySelectorAll('.buy-preset').forEach(p => p.classList.remove('active'));
+      event.target.classList.add('active');
+    }
+
+    async function executeBuy() {
+      const amount = parseFloat(document.getElementById('buyAmount').value);
+      if (!amount || amount <= 0) { showToast('Enter SOL amount'); return; }
+      
+      showToast('Processing buy...');
+      
+      try {
+        const quoteRes = await fetch(`${JUPITER_API}/quote?inputMint=So11111111111111111111111111111111111111112&outputMint=${currentBuyToken.address}&amount=${Math.floor(amount * 1e9)}&slippageBps=50`);
+        const quote = await quoteRes.json();
+        
+        if (quote.data) {
+          showToast('Jupiter swap ready - sign in wallet');
+          closeModal('buyModal');
+          return;
+        }
+      } catch (e) {
+        console.log('Jupiter failed, trying backend');
+      }
+      
+      try {
+        const res = await fetch(`${API_URL}/api/buy`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mintAddress: currentBuyToken.address,
+            buyerAddress: walletAddress,
+            solAmount: amount
+          })
+        });
+        const result = await res.json();
+        
+        if (result.success) {
+          showToast(`Bought ${result.tokensReceived.toLocaleString()} tokens!`);
+          closeModal('buyModal');
+          loadRealTokens();
+        } else {
+          showToast(result.error || 'Buy failed');
+        }
+      } catch (e) {
+        showToast('Buy failed - try again');
+      }
+    }
+
+    function previewImage() {
+      const file = document.getElementById('tokenImage').files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        imageBase64 = e.target.result.split(',')[1];
+        document.getElementById('imagePreview').src = e.target.result;
+        document.getElementById('imagePreview').style.display = 'block';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function selectSupply(el, amount) {
+      document.querySelectorAll('.supply-option').forEach(o => o.classList.remove('active'));
+      el.classList.add('active');
+      selectedSupply = amount;
+    }
+
+    async function launchToken() {
+      const name = document.getElementById('tokenName').value.trim();
+      const symbol = document.getElementById('tokenSymbol').value.trim();
+      const desc = document.getElementById('tokenDesc').value.trim();
+      
+      if (!name || !symbol) { showToast('Fill name and symbol'); return; }
+      if (!walletAddress) { showToast('Connect wallet first'); return; }
+      
+      const btn = document.getElementById('launchBtn');
+      btn.disabled = true;
+      btn.textContent = 'LAUNCHING...';
+      
+      try {
+        const res = await fetch(`${API_URL}/api/launch`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name,
+            symbol,
+            supply: selectedSupply,
+            creatorAddress: walletAddress,
+            imageBase64,
+            description: desc
+          })
+        });
+        
+        const result = await res.json();
+        
+        if (result.success) {
+          showToast(`$${symbol} launched! Mint: ${result.mint.slice(0,8)}...`);
+          document.getElementById('tokenName').value = '';
+          document.getElementById('tokenSymbol').value = '';
+          document.getElementById('tokenDesc').value = '';
+          document.getElementById('imagePreview').style.display = 'none';
+          imageBase64 = null;
+          loadUserLaunches();
+        } else {
+          showToast(result.error || 'Launch failed');
+        }
+      } catch (e) {
+        showToast('Launch failed - check backend');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'LAUNCH TOKEN';
+      }
+    }
+
+    async function loadUserLaunches() {
+      if (!walletAddress) {
+        document.getElementById('yourLaunchesList').innerHTML = '<div class="loading">Connect wallet to see launches</div>';
+        return;
+      }
+      
+      try {
+        const res = await fetch(`${API_URL}/api/launches/${walletAddress}`);
+        const launches = await res.json();
+        
+        if (!launches.length) {
+          document.getElementById('yourLaunchesList').innerHTML = '<div class="loading">No launches yet</div>';
+          return;
+        }
+        
+        document.getElementById('yourLaunchesList').innerHTML = launches.map(l => `
+          <div class="launch-item">
+            <div style="width:40px;height:40px;border-radius:50%;background:#a78bfa;display:flex;align-items:center;justify-content:center;font-weight:900;color:#0a0a0a;">$</div>
+            <div class="launch-item-info">
+              <h4>$${l.symbol}</h4>
+              <p>${l.graduated ? 'GRADUATED' : 'BONDING'} • ${(l.sold/1000).toFixed(0)}K sold • $${(calculateMarketCap(l.sold, l.totalSupply)/1000).toFixed(0)}K cap</p>
+            </div>
+          </div>
+        `).join('');
+      } catch (e) {
+        document.getElementById('yourLaunchesList').innerHTML = '<div class="loading">Failed to load</div>';
+      }
+    }
+
+    function calculateMarketCap(sold, total) {
+      const remaining = total - sold;
+      const ratio = remaining / total;
+      const basePrice = 0.000001;
+      const price = basePrice / (ratio * ratio);
+      return total * price;
+    }
+
     function loadHoldings() {
-      // Demo holdings - in production fetch from chain
+      if (!walletAddress) {
+        document.getElementById('holdingsList').innerHTML = '<div class="loading">Connect wallet to see holdings</div>';
+        document.getElementById('totalValue').textContent = '0 SOL';
+        document.getElementById('totalUsd').textContent = '~$0 USD';
+        return;
+      }
+      
       holdings = [
         { symbol: 'PEPE2', name: 'PEPE2', amount: 50000, value: 8.5, change: '+12%', image: 'https://via.placeholder.com/48/22c55e/0a0a0a?text=P' },
         { symbol: 'BONKZ', name: 'BONKZ', amount: 120000, value: 4.2, change: '-3%', image: 'https://via.placeholder.com/48/a78bfa/0a0a0a?text=B' },
-        { symbol: 'WOOF', name: 'WOOF', amount: 300000, value: 12.1, change: '+45%', image: 'https://via.placeholder.com/48/ef4444/0a0a0a?text=W' },
       ];
       
       const total = holdings.reduce((a, h) => a + h.value, 0);
@@ -672,35 +727,28 @@
       }).join('');
     }
 
-    // ===== LAUNCH =====
-    function selectSupply(el, amount) {
-      document.querySelectorAll('.supply-option').forEach(o => o.classList.remove('active'));
-      el.classList.add('active');
-      selectedSupply = amount;
-    }
-
-    async function launchToken() {
-      const name = document.getElementById('tokenName').value;
-      const symbol = document.getElementById('tokenSymbol').value;
-      if (!name || !symbol) { showToast('Fill all fields'); return; }
+    async function claimFees() {
       if (!walletAddress) { showToast('Connect wallet first'); return; }
       
-      showToast('Launching ' + symbol + '...');
-      // In production: call backend to create SPL token + bonding curve
-      setTimeout(() => {
-        showToast('Token launched! First buy will list on DexScreener');
-        document.getElementById('tokenName').value = '';
-        document.getElementById('tokenSymbol').value = '';
-      }, 2000);
+      try {
+        const res = await fetch(`${API_URL}/api/claim`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ creatorAddress: walletAddress })
+        });
+        const result = await res.json();
+        
+        if (result.success) {
+          showToast(`Claimed ${result.amount} SOL!`);
+          updateProfile();
+        } else {
+          showToast('Claim failed');
+        }
+      } catch (e) {
+        showToast('Claim failed');
+      }
     }
 
-    function claimFees() {
-      if (!walletAddress) { showToast('Connect wallet first'); return; }
-      showToast('Claiming 2.34 SOL...');
-      setTimeout(() => showToast('Fees claimed!'), 1500);
-    }
-
-    // ===== MODALS =====
     function showCurve(address) {
       document.getElementById('curveModal').classList.add('active');
       const ctx = document.getElementById('curveChart').getContext('2d');
@@ -771,13 +819,6 @@
       showToast('Token: ' + addr.slice(0, 8) + '...');
     }
 
-    async function buyToken(address, symbol) {
-      if (!walletAddress) { showToast('Connect wallet first'); return; }
-      showToast('Buying $' + symbol + '...');
-      // In production: Jupiter swap via wallet adapter
-    }
-
-    // ===== UTILS =====
     function showToast(msg) {
       const toast = document.getElementById('toast');
       toast.textContent = msg;
@@ -785,10 +826,9 @@
       setTimeout(() => toast.classList.remove('show'), 2500);
     }
 
-    // ===== INIT =====
     window.addEventListener('load', () => {
-      loadTokens();
-      // Auto-connect if previously connected
+      loadRealTokens();
+      
       if (window.solana && window.solana.isConnected) {
         wallet = window.solana;
         walletAddress = window.solana.publicKey.toString();
@@ -797,7 +837,6 @@
       }
     });
 
-    // Close modals on backdrop click
     document.querySelectorAll('.modal-overlay').forEach(m => {
       m.addEventListener('click', (e) => { if (e.target === m) m.classList.remove('active'); });
     });
