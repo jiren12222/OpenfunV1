@@ -1,187 +1,173 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OPENFUN</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/@solana/web3.js@1.91.1/lib/index.iife.min.js"></script>
-<style>
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>OPENFUN</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://unpkg.com/@solana/web3.js@1.87.6/lib/index.iife.min.js"></script>
+  <script src="https://unpkg.com/@solana/spl-token@0.3.9/lib/index.iife.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
-
-<header>
-  <div class="container" style="display:flex;justify-content:space-between;align-items:center">
-    <div class="logo" style="flex:1">
-      <svg viewBox="0 0 32 32" fill="none"><path d="M16 2L4 10v12l12 8 12-8V10L16 2z" stroke="#a78bfa" stroke-width="2" fill="none"/><path d="M16 8v16M10 12l6-4 6 4" stroke="#a78bfa" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="16" r="3" fill="#a78bfa"/></svg>
+  <header class="header">
+    <div class="logo">
+      <svg width="28" height="28" viewBox="0 0 100 100" fill="none">
+        <path d="M20 70 Q50 10 80 70 Q65 55 50 75 Q35 55 20 70Z" fill="#a78bfa" stroke="#a78bfa" stroke-width="3"/>
+        <circle cx="50" cy="45" r="8" fill="#0a0a0a"/>
+      </svg>
       <span class="logo-text">OPENFUN</span>
     </div>
-  </div>
-<button id="hdr-wallet" onclick="connectWallet()" style="background:transparent;border:2px solid #a78bfa;border-radius:10px;color:#a78bfa;font-size:12px;font-weight:800;padding:8px 16px;cursor:pointer">CONNECT</button></div></header>
+    <button id="walletBtn" class="wallet-btn">CONNECT WALLET</button>
+  </header>
 
-<div class="container" style="display:flex;justify-content:space-between;align-items:center">
-
-<!-- HOME PAGE -->
-<div class="page active" id="page-home">
-  <div class="section-title">🔥 TRENDING</div>
-  <div id="trending-tokens">
-    <div class="empty-state"><p>No tokens yet</p></div>
-  </div>
-
-  <div class="section-title">🆕 NEW LAUNCHES</div>
-  <div id="new-tokens">
-    <div class="empty-state"><p>No new launches yet</p></div>
-  </div>
-</div>
-
-<!-- HOLDINGS PAGE -->
-<div class="page" id="page-holdings">
-  <div class="section-title">💼 PORTFOLIO</div>
-  <div class="wallet-section">
-    <div class="wallet-row"><span class="wallet-label">Wallet Balance</span><span class="wallet-value" id="holdings-balance">0 SOL</span></div>
-    <div class="wallet-row"><span class="wallet-label">USD Value</span><span class="wallet-value" id="holdings-usd">~$0 USD</span></div>
-  </div>
-  <div class="section-title">📋 YOUR HOLDINGS</div>
-  <div id="holdings-list"><div class="empty-state"><p>No holdings yet</p></div></div>
-</div>
-
-<!-- LAUNCH PAGE -->
-<div class="page" id="page-launch">
-  <div class="section-title">🚀 LAUNCH TOKEN</div>
-  <div class="form-group"><label class="form-label">Token Name</label><input type="text" class="form-input" id="launch-name" placeholder="e.g. MoonDoge"></div>
-  <div class="form-group"><label class="form-label">Symbol</label><input type="text" class="form-input" id="launch-symbol" placeholder="e.g. MOON" maxlength="8"></div>
-  <div class="form-group"><label class="form-label">Image</label><input type="file" class="form-input" id="launch-image" accept="image/*"></div>
-  <div class="form-group"><label class="form-label">Description</label><input type="text" class="form-input" id="launch-desc" placeholder="What's your token about?"></div>
-  <div class="form-group">
-    <label class="form-label">Total Supply</label>
-    <div class="supply-options">
-      <button class="supply-btn" data-supply="100000000">100M</button>
-      <button class="supply-btn" data-supply="500000000">500M</button>
-      <button class="supply-btn active" data-supply="1000000000">1B</button>
-      <button class="supply-btn" data-supply="5000000000">5B</button>
-      <button class="supply-btn" data-supply="10000000000">10B</button>
+  <div id="walletModal" class="modal">
+    <div class="modal-content">
+      <h3>CONNECT WALLET</h3>
+      <div id="walletList" class="wallet-list"></div>
+      <button class="close-modal" onclick="closeWalletModal()">CLOSE</button>
     </div>
   </div>
-  <div class="launch-info">
-    <div class="launch-info-row"><span class="label">Starting FDV</span><span class="value">$5,000</span></div>
-    <div class="launch-info-row"><span class="label">Virtual Liquidity</span><span class="value">$2,500</span></div>
-    <div class="launch-info-row"><span class="label">Bonding Curve</span><span class="value">Auto-deploy</span></div>
-    <div class="launch-info-row"><span class="label">DexScreener</span><span class="value">Auto-list on first buy</span></div>
-    <div class="launch-info-row"><span class="label">Network</span><span class="value" style="color:#22c55e">MAINNET</span></div>
-    <div class="launch-info-row"><span class="label">Fee</span><span class="value" style="color:#22c55e">Transaction fee only (~0.005 SOL)</span></div>
-  </div>
-  <button class="btn-launch" id="btn-launch" onclick="launchToken()">
-    <span id="launch-spinner" style="display:none"><span class="spinner"></span></span>
-    <span id="launch-text">LAUNCH TOKEN</span>
-  </button>
 
-  <div class="section-title" style="margin-top:32px">📈 YOUR LAUNCHES</div>
-  <div id="your-launches"><div class="empty-state"><p>No launches yet</p></div></div>
-</div>
+  <main id="mainContent">
+    <section id="homePage" class="page active">
+      <div class="section-header">
+        <h2>TRENDING</h2>
+        <span class="live-dot"></span>
+      </div>
+      <div id="trendingTokens" class="token-grid empty">
+        <p class="empty-msg">NO PLATFORM TOKENS YET. BE THE FIRST TO LAUNCH!</p>
+      </div>
 
-<!-- PROFILE PAGE -->
-<div class="page" id="page-profile">
-  <div class="section-title">👤 CONNECT WALLET</div>
-  <div class="wallet-section">
-    <div class="wallet-row"><span class="wallet-label">Wallet</span><span class="wallet-value" id="wallet-address">Not Connected</span></div>
-    <div class="wallet-row"><span class="wallet-label">Balance</span><span class="wallet-value" id="wallet-balance">0 SOL</span></div>
-    <div class="wallet-row"><span class="wallet-label">Tokens Launched</span><span class="wallet-value" id="profile-launches">0</span></div>
-    <div class="wallet-row"><span class="wallet-label">Graduated</span><span class="wallet-value" id="profile-graduated">0</span></div>
-    <div class="wallet-row"><span class="wallet-label">Trades</span><span class="wallet-value" id="profile-trades">0</span></div>
-    <div class="wallet-row"><span class="wallet-label">Win Rate</span><span class="wallet-value" id="profile-winrate">0%</span></div>
-    <button class="btn-connect" id="btn-wallet" onclick="connectWallet()">CONNECT WALLET</button>
-  </div>
+      <div class="section-header">
+        <h2>NEW LAUNCHES</h2>
+        <span class="live-dot green"></span>
+      </div>
+      <div id="newTokens" class="token-grid"></div>
+    </section>
 
-  </div>
+    <section id="tokenDetailPage" class="page">
+      <button class="back-btn" onclick="showPage('homePage')">← BACK</button>
+      <div id="tokenDetailContent"></div>
+    </section>
 
-  <div class="section-title">🔒 VIP LOUNGE</div>
-  <div class="vip-section" id="vip-section">
-    <div id="vip-locked">
-      <p style="font-size:13px;color:#888;margin-bottom:8px">Complete 10+ trades to unlock exclusive access</p>
-      <div class="vip-progress"><div class="vip-progress-bar" id="vip-bar" style="width:0%"></div></div>
-      <p style="font-size:12px;color:#666;margin-top:8px">You have <span id="vip-count" style="color:#a78bfa;font-weight:700">0</span> / 10 trades</p>
-    </div>
-    <div id="vip-unlocked" style="display:none">
-      <p style="font-size:16px;font-weight:800;color:#a78bfa;margin-bottom:8px">🎉 VIP ACCESS GRANTED</p>
-      <p style="font-size:13px;color:#888">Welcome to the exclusive lounge</p>
-    </div>
-  </div>
-</div>
+    <section id="holdingsPage" class="page">
+      <h2>YOUR HOLDINGS</h2>
+      <div id="holdingsList" class="token-grid"></div>
+      <div id="holdingsEmpty" class="empty-state">
+        <p>NO HOLDINGS YET</p>
+        <button class="btn-primary" onclick="showPage('homePage')">BROWSE TOKENS</button>
+      </div>
+    </section>
 
-<!-- TOKEN DETAIL PAGE -->
-<div class="page" id="page-token-detail">
-  <button onclick="goBack()" style="background:none;border:none;color:#888;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:12px;display:flex;align-items:center;gap:6px">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>BACK
-  </button>
-  <div id="token-detail-content"></div>
-</div>
+    <section id="launchPage" class="page">
+      <h2>LAUNCH TOKEN</h2>
+      <div class="launch-form">
+        <div class="form-group">
+          <label>TOKEN NAME</label>
+          <input type="text" id="tokenName" placeholder="e.g. MOONSHOT" maxlength="32">
+        </div>
+        <div class="form-group">
+          <label>SYMBOL</label>
+          <input type="text" id="tokenSymbol" placeholder="e.g. MOON" maxlength="10">
+        </div>
+        <div class="form-group">
+          <label>DESCRIPTION</label>
+          <textarea id="tokenDesc" placeholder="What makes this token special?" maxlength="500"></textarea>
+        </div>
+        <div class="form-group">
+          <label>IMAGE</label>
+          <input type="file" id="tokenImage" accept="image/*">
+        </div>
+        <div class="form-group">
+          <label>TOTAL SUPPLY</label>
+          <select id="tokenSupply">
+            <option value="100000000">100M</option>
+            <option value="500000000">500M</option>
+            <option value="1000000000" selected>1B</option>
+            <option value="5000000000">5B</option>
+            <option value="10000000000">10B</option>
+          </select>
+        </div>
+        <div class="fee-info">
+          <p>LAUNCH FEE: 0% (Only Solana network tx fees apply)</p>
+        </div>
+        <button id="launchBtn" class="btn-launch">LAUNCH TOKEN</button>
+        <div id="launchStatus" class="launch-status"></div>
+      </div>
+    </section>
 
-</div>
+    <section id="profilePage" class="page">
+      <h2>PROFILE</h2>
+      <div class="profile-card">
+        <div class="wallet-info">
+          <p id="profileWallet">NOT CONNECTED</p>
+          <p id="profileBalance">0 SOL</p>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-box">
+            <span class="stat-label">TRADES</span>
+            <span id="tradeCount" class="stat-value">0</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">LAUNCHED</span>
+            <span id="launchCount" class="stat-value">0</span>
+          </div>
+        </div>
+        <div id="vipBadge" class="vip-badge hidden">
+          <span>🏆 VIP LOUNGE ACCESS</span>
+        </div>
+        <button class="btn-primary" onclick="showPage('vipPage')" id="vipBtn" disabled>ENTER VIP LOUNGE</button>
+      </div>
+      <div class="creator-fees">
+        <h3>CREATOR FEES</h3>
+        <div class="fee-row">
+          <span>TOTAL EARNED</span>
+          <span id="creatorFees">0 SOL</span>
+        </div>
+        <button id="claimFeesBtn" class="btn-primary">CLAIM</button>
+      </div>
+    </section>
 
-<!-- COPY TRADE MODAL -->
-  <div class="modal">
-    <p style="font-size:13px;color:#888;margin-bottom:16px">Auto-mirror all buys and sells from this trader.</p>
-  </div>
-</div>
+    <section id="vipPage" class="page">
+      <button class="back-btn" onclick="showPage('profilePage')">← BACK</button>
+      <div class="vip-header">
+        <h2>🔥 VIP LOUNGE</h2>
+        <p>EXCLUSIVE FOR 10+ TRADE WARRIORS</p>
+      </div>
+      <div class="vip-content">
+        <div class="vip-feature">
+          <h3>ALPHA CHANNEL</h3>
+          <p>Early access to new launches before public</p>
+        </div>
+        <div class="vip-feature">
+          <h3>WHITELIST SPOTS</h3>
+          <p>Guaranteed allocation in hyped launches</p>
+        </div>
+        <div class="vip-feature">
+          <h3>TRADER CHAT</h3>
+          <p>Connect with top platform traders</p>
+        </div>
+      </div>
+    </section>
+  </main>
 
-<!-- BOTTOM NAV -->
-<nav class="bottom-nav">
-  <button class="nav-item active" data-page="home" onclick="navigate('home')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>HOME
-  </button>
-  <button class="nav-item" data-page="holdings" onclick="navigate('holdings')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg>HOLDINGS
-  </button>
-  <button class="nav-item" data-page="launch" onclick="navigate('launch')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>LAUNCH
-  </button>
-  <button class="nav-item" data-page="profile" onclick="navigate('profile')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>PROFILE
-  </button>
-</nav>
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-page="homePage" onclick="showPage('homePage')">
+      <span>HOME</span>
+    </button>
+    <button class="nav-btn" data-page="holdingsPage" onclick="showPage('holdingsPage')">
+      <span>HOLDINGS</span>
+    </button>
+    <button class="nav-btn" data-page="launchPage" onclick="showPage('launchPage')">
+      <span>LAUNCH</span>
+    </button>
+    <button class="nav-btn" data-page="profilePage" onclick="showPage('profilePage')">
+      <span>PROFILE</span>
+    </button>
+  </nav>
 
-<script>
-let currentPage='home',walletConnected=false,walletAddress=null,walletProvider=null,selectedSupply=1000000000,trendingTokens=[],userHoldings=[],userTrades=parseInt(localStorage.getItem('openfun_trades')||'0');
-const MAINNET_RPC='https://api.mainnet-beta.solana.com',JUPITER_QUOTE='https://quote-api.jup.ag/v6/quote',JUPITER_SWAP='https://quote-api.jup.ag/v6/swap';
-
-function navigate(page){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));document.getElementById('page-'+page).classList.add('active');document.querySelector('[data-page="'+page+'"]').classList.add('active');currentPage=page;if(page==='home'){renderNew()}else if(page==='holdings')loadHoldings();else if(page==='profile')updateProfile();else if(page==='launch')renderYourLaunches();window.scrollTo(0,0)}
-function goBack(){navigate('home')}
-
-async function connectWallet(){const wallets=[];if(window.phantom?.solana)wallets.push({name:'Phantom',provider:window.phantom.solana});if(window.solflare?.solana)wallets.push({name:'Solflare',provider:window.solflare.solana});if(window.backpack?.solana)wallets.push({name:'Backpack',provider:window.backpack.solana});if(wallets.length===0){showAlert('No wallet found. Install Phantom, Solflare, or Backpack.','error');return}try{const provider=wallets[0].provider;const resp=await provider.connect();walletAddress=resp.publicKey.toString();walletProvider=provider;walletConnected=true;document.getElementById('wallet-address').textContent=walletAddress.slice(0,6)+'...'+walletAddress.slice(-4);document.getElementById('btn-wallet').textContent='DISCONNECT';if(document.getElementById('hdr-wallet'))document.getElementById('hdr-wallet').textContent=walletAddress.slice(0,4)+'...';if(document.getElementById('hdr-wallet'))document.getElementById('hdr-wallet').onclick=disconnectWallet;document.getElementById('btn-wallet').onclick=disconnectWallet;await updateBalance();showAlert('Wallet connected: '+walletAddress.slice(0,6)+'...','success')}catch(e){showAlert('Connection failed: '+e.message,'error')}}
-function disconnectWallet(){walletConnected=false;walletAddress=null;walletProvider=null;document.getElementById('wallet-address').textContent='Not Connected';document.getElementById('wallet-balance').textContent='0 SOL';document.getElementById('btn-wallet').textContent='CONNECT WALLET';if(document.getElementById('hdr-wallet'))document.getElementById('hdr-wallet').textContent='CONNECT';if(document.getElementById('hdr-wallet'))document.getElementById('hdr-wallet').onclick=connectWallet;document.getElementById('btn-wallet').onclick=connectWallet;showAlert('Wallet disconnected','info')}
-async function updateBalance(){if(!walletAddress)return;try{const conn=new solanaWeb3.Connection(MAINNET_RPC);const pubkey=new solanaWeb3.PublicKey(walletAddress);const balance=await conn.getBalance(pubkey);const sol=balance/1e9;document.getElementById('wallet-balance').textContent=sol.toFixed(4)+' SOL';document.getElementById('holdings-balance').textContent=sol.toFixed(4)+' SOL';document.getElementById('holdings-usd').textContent='~$'+(sol*140).toFixed(2)+' USD'}catch(e){console.error('Balance fetch failed:',e)}}
-
-function renderNew(){const c=document.getElementById('new-tokens');const ls=JSON.parse(localStorage.getItem('openfun_launches')||'[]');if(ls.length===0){c.innerHTML='<div class="empty-state"><p>No new launches yet</p></div>';return}c.innerHTML=ls.slice(0,10).map(t=>'<div class="token-card" onclick="openDetail(\''+t.address+'\',\''+t.symbol+'\')"><div class="token-card-header"><img src="'+t.image+'" class="token-img"><div class="token-info"><div class="token-name">'+esc(t.name)+'</div><div class="token-symbol">$'+esc(t.symbol)+'</div></div><span class="token-tag tag-new">NEW</span></div><div class="token-mc">FDV: $'+t.fdv.toLocaleString()+'</div><div class="token-stats"><div class="token-stat">Supply: <span>'+fmt(t.supply)+'</span></div></div></div>').join('')}
-
-async function openDetail(address,symbol){navigate('token-detail');const c=document.getElementById('token-detail-content');let t=null;const ls=JSON.parse(localStorage.getItem('openfun_launches')||'[]');t=ls.find(x=>x.address===address);if(!t){c.innerHTML='<div class="empty-state"><p>Token not found</p></div>';return}const chart='https://dexscreener.com/solana/'+t.address+'?embed=1&theme=dark&trades=0&info=0';c.innerHTML='<div class="token-detail-header"><img src="'+t.image+'" class="token-detail-img"><div class="token-detail-name">'+esc(t.name)+'</div><div class="token-detail-symbol">$'+esc(t.symbol)+'</div></div><div class="detail-grid"><div class="detail-item"><div class="detail-item-label">PRICE</div><div class="detail-item-value">$'+t.price+'</div></div><div class="detail-item"><div class="detail-item-label">MARKET CAP</div><div class="detail-item-value">'+t.mc+'</div></div><div class="detail-item"><div class="detail-item-label">24H VOLUME</div><div class="detail-item-value">'+t.volume24h+'</div></div><div class="detail-item"><div class="detail-item-label">LIQUIDITY</div><div class="detail-item-value">'+t.liquidity+'</div></div></div><div class="section-title">📈 LIVE CHART</div><div class="token-detail-chart"><iframe src="'+chart+'" loading="lazy"></iframe></div><div class="section-title">📋 CONTRACT</div><div class="contract-address" onclick="navigator.clipboard.writeText(\''+t.address+'\');showAlert(\'Copied!\',\'success\')">'+t.address+'</div><div class="section-title">💰 BUY TOKEN</div><div class="buy-options"><button class="buy-opt" data-amount="0.1" onclick="selBuy(this)">0.1 SOL</button><button class="buy-opt" data-amount="0.5" onclick="selBuy(this)">0.5 SOL</button><button class="buy-opt active" data-amount="1" onclick="selBuy(this)">1 SOL</button><button class="buy-opt" data-amount="5" onclick="selBuy(this)">5 SOL</button></div><button class="btn-buy" onclick="buyToken(\''+t.address+'\',\''+t.symbol+'\')">BUY $'+esc(t.symbol)+'</button>'}
-
-let buyAmt=1;
-function selBuy(btn){document.querySelectorAll('.buy-opt').forEach(b=>b.classList.remove('active'));btn.classList.add('active');buyAmt=parseFloat(btn.dataset.amount)}
-
-async function buyToken(tokenAddress,symbol){if(!walletConnected){showAlert('Connect wallet first!','error');return}showAlert('Processing via Jupiter...','info');try{const q=await fetch(JUPITER_QUOTE+'?inputMint=So11111111111111111111111111111111111111112&outputMint='+tokenAddress+'&amount='+Math.floor(buyAmt*1e9)+'&slippageBps=500');const quote=await q.json();if(!quote||quote.error){showAlert('No route found. Low liquidity.','error');return}const s=await fetch(JUPITER_SWAP,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({quoteResponse:quote,userPublicKey:walletAddress,wrapAndUnwrapSol:true})});const sd=await s.json();if(!sd.swapTransaction){showAlert('Swap failed','error');return}const tx=solanaWeb3.VersionedTransaction.deserialize(new Uint8Array(Buffer.from(sd.swapTransaction,'base64')));const signed=await walletProvider.signTransaction(tx);const conn=new solanaWeb3.Connection(MAINNET_RPC);const sig=await conn.sendRawTransaction(signed.serialize());await conn.confirmTransaction(sig);userTrades++;localStorage.setItem('openfun_trades',userTrades.toString());const h=userHoldings.find(x=>x.address===tokenAddress);if(h){h.amount+=buyAmt}else{userHoldings.push({address:tokenAddress,symbol:symbol,amount:buyAmt})}localStorage.setItem('openfun_holdings',JSON.stringify(userHoldings));showAlert('Buy successful! Tx: '+sig.slice(0,20)+'...','success');updateVIP();updateProfile()}catch(e){showAlert('Buy failed: '+e.message,'error')}}
-
-async function launchToken(){if(!walletConnected){showAlert('Connect wallet first!','error');return}const name=document.getElementById('launch-name').value.trim();const symbol=document.getElementById('launch-symbol').value.trim().toUpperCase();const desc=document.getElementById('launch-desc').value.trim();if(!name||!symbol){showAlert('Name and symbol required!','error');return}const btn=document.getElementById('btn-launch');const sp=document.getElementById('launch-spinner');const txt=document.getElementById('launch-text');btn.disabled=true;sp.style.display='inline';txt.textContent='CREATING TOKEN...';try{const conn=new solanaWeb3.Connection(MAINNET_RPC);const payer=new solanaWeb3.PublicKey(walletAddress);const mintKeypair=solanaWeb3.Keypair.generate();const mintPubkey=mintKeypair.publicKey;const rent=await conn.getMinimumBalanceForRentExemption(82);const tx=new solanaWeb3.Transaction();tx.add(solanaWeb3.SystemProgram.createAccount({fromPubkey:payer,newAccountPubkey:mintPubkey,lamports:rent,space:82,programId:solanaWeb3.TOKEN_PROGRAM_ID}));tx.add(solanaWeb3.Token.createInitMintInstruction(solanaWeb3.TOKEN_PROGRAM_ID,mintPubkey,9,payer,payer));const ata=await solanaWeb3.Token.getAssociatedTokenAddress(solanaWeb3.ASSOCIATED_TOKEN_PROGRAM_ID,solanaWeb3.TOKEN_PROGRAM_ID,mintPubkey,payer);tx.add(solanaWeb3.Token.createAssociatedTokenAccountInstruction(solanaWeb3.ASSOCIATED_TOKEN_PROGRAM_ID,solanaWeb3.TOKEN_PROGRAM_ID,mintPubkey,ata,payer,payer));tx.add(solanaWeb3.Token.createMintToInstruction(solanaWeb3.TOKEN_PROGRAM_ID,mintPubkey,ata,payer,[],selectedSupply));tx.feePayer=payer;tx.recentBlockhash=(await conn.getLatestBlockhash()).blockhash;tx.partialSign(mintKeypair);const signed=await walletProvider.signTransaction(tx);const sig=await conn.sendRawTransaction(signed.serialize());await conn.confirmTransaction(sig);const launchData={name:name,symbol:symbol,description:desc,address:mintPubkey.toString(),supply:selectedSupply,creator:walletAddress,timestamp:Date.now(),txSignature:sig,fdv:5000,liquidity:2500,image:'https://via.placeholder.com/44',tag:'new',price:'0.000000',mc:'$5,000',volume24h:'$0',liquidity:'$2,500'};const ls=JSON.parse(localStorage.getItem('openfun_launches')||'[]');ls.unshift(launchData);localStorage.setItem('openfun_launches',JSON.stringify(ls));showAlert('Token launched! Tx: '+sig.slice(0,20)+'...','success');document.getElementById('launch-name').value='';document.getElementById('launch-symbol').value='';document.getElementById('launch-desc').value='';renderYourLaunches();renderNew();updateProfile()}catch(e){showAlert('Launch failed: '+e.message,'error')}finally{btn.disabled=false;sp.style.display='none';txt.textContent='LAUNCH TOKEN'}}
-
-function renderYourLaunches(){const c=document.getElementById('your-launches');const ls=JSON.parse(localStorage.getItem('openfun_launches')||'[]');if(ls.length===0){c.innerHTML='<div class="empty-state"><p>No launches yet</p></div>';return}c.innerHTML=ls.map(t=>'<div class="token-card" onclick="openDetail(\''+t.address+'\',\''+t.symbol+'\')"><div class="token-card-header"><img src="'+t.image+'" class="token-img"><div class="token-info"><div class="token-name">'+esc(t.name)+'</div><div class="token-symbol">$'+esc(t.symbol)+'</div></div><span class="token-tag tag-new">NEW</span></div><div class="token-mc">FDV: $'+t.fdv.toLocaleString()+'</div><div class="token-stats"><div class="token-stat">Supply: <span>'+fmt(t.supply)+'</span></div></div></div>').join('')}
-
-function loadHoldings(){const c=document.getElementById('holdings-list');if(userHoldings.length===0){c.innerHTML='<div class="empty-state"><p>No holdings yet</p></div>';return}c.innerHTML=userHoldings.map(h=>'<div class="holding-card" onclick="openDetail(\''+h.address+'\',\''+h.symbol+'\')"><div class="holding-header"><div style="width:40px;height:40px;border-radius:50%;background:#a78bfa;display:flex;align-items:center;justify-content:center;font-weight:800;color:#0a0a0a">'+h.symbol[0]+'</div><div><div style="font-size:14px;font-weight:800;color:#fff">$'+esc(h.symbol)+'</div><div style="font-size:12px;color:#888;margin-top:2px">'+h.amount.toFixed(4)+' SOL spent</div></div></div></div>').join('')}
-
-function updateProfile(){const ls=JSON.parse(localStorage.getItem('openfun_launches')||'[]');const grad=ls.filter(l=>l.tag==='graduated').length;const wins=Math.floor(userTrades*0.6);const wr=userTrades>0?Math.round((wins/userTrades)*100):0;document.getElementById('profile-launches').textContent=ls.length;document.getElementById('profile-graduated').textContent=grad;document.getElementById('profile-trades').textContent=userTrades;document.getElementById('profile-winrate').textContent=wr+'%';updateVIP()}
-
-function updateVIP(){const bar=document.getElementById('vip-bar');const count=document.getElementById('vip-count');const locked=document.getElementById('vip-locked');const unlocked=document.getElementById('vip-unlocked');const p=Math.min((userTrades/10)*100,100);bar.style.width=p+'%';count.textContent=userTrades;if(userTrades>=10){locked.style.display='none';unlocked.style.display='block'}}
-
-
-document.querySelectorAll('.supply-btn').forEach(btn=>{btn.addEventListener('click',function(){document.querySelectorAll('.supply-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active');selectedSupply=parseInt(this.dataset.supply)})});
-
-function fmt(num){if(!num)return'0';num=parseFloat(num);if(num>=1e9)return(num/1e9).toFixed(2)+'B';if(num>=1e6)return(num/1e6).toFixed(2)+'M';if(num>=1e3)return(num/1e3).toFixed(2)+'K';return num.toFixed(2)}
-function esc(text){if(!text)return'';const d=document.createElement('div');d.textContent=text;return d.innerHTML}
-function showAlert(message,type){const e=document.querySelector('.alert');if(e)e.remove();const a=document.createElement('div');a.className='alert alert-'+type;a.textContent=message;document.body.appendChild(a);setTimeout(()=>a.remove(),4000)}
-
-window.addEventListener('DOMContentLoaded',()=>{const sh=localStorage.getItem('openfun_holdings');if(sh)userHoldings=JSON.parse(sh);renderYourLaunches();updateProfile();renderNew()});
-
-window.addEventListener('load',async()=>{if(window.phantom?.solana?.isConnected){try{const resp=await window.phantom.solana.connect({onlyIfTrusted:true});walletAddress=resp.publicKey.toString();walletProvider=window.phantom.solana;walletConnected=true;document.getElementById('wallet-address').textContent=walletAddress.slice(0,6)+'...'+walletAddress.slice(-4);document.getElementById('btn-wallet').textContent='DISCONNECT';if(document.getElementById('hdr-wallet'))document.getElementById('hdr-wallet').textContent=walletAddress.slice(0,4)+'...';if(document.getElementById('hdr-wallet'))document.getElementById('hdr-wallet').onclick=disconnectWallet;document.getElementById('btn-wallet').onclick=disconnectWallet;await updateBalance()}catch(e){}}});
-</script>
-
+  <script src="wallet.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
