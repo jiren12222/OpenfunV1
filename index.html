@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>OPENFUN</title>
   <script src="https://unpkg.com/@solana/web3.js@1.87.6/lib/index.iife.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@solana/spl-token@0.3.9/dist/index.umd.min.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e5e5e5;min-height:100vh;padding-bottom:80px;-webkit-font-smoothing:antialiased}
@@ -287,6 +286,10 @@
     const connection = new solanaWeb3.Connection(NETWORK, 'confirmed');
     let currentWallet = null;
     let currentPublicKey = null;
+
+    const TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+    const ASSOCIATED_TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
+
     const WALLETS = [
       { name: 'Phantom', id: 'phantom', icon: 'https://phantom.app/img/phantom-icon-purple.png' },
       { name: 'Solflare', id: 'solflare', icon: 'https://solflare.com/assets/logo-icon.png' },
@@ -416,16 +419,74 @@
       return currentPublicKey;
     }
 
-    async function signAndSendTransaction(transaction) {
+    async function signAndSendTransaction(transaction, additionalSigners) {
       if (!currentWallet || !currentPublicKey) throw new Error('Wallet not connected');
       const pubKey = new solanaWeb3.PublicKey(currentPublicKey);
       transaction.feePayer = pubKey;
       const { blockhash } = await connection.getLatestBlockhash();
       transaction.recentBlockhash = blockhash;
+      if (additionalSigners && additionalSigners.length > 0) {
+        transaction.partialSign(...additionalSigners);
+      }
       const signed = await currentWallet.signTransaction(transaction);
-      const signature = await connection.sendRawTransaction(signed.serialize());
+      const signature = await connection.sendRawTransaction(signed.serialize(), {
+        maxRetries: 3,
+        skipPreflight: false
+      });
       await connection.confirmTransaction(signature, 'confirmed');
       return signature;
+    }
+
+    async function getAssociatedTokenAddress(mint, owner) {
+      const [address] = await solanaWeb3.PublicKey.findProgramAddress(
+        [owner.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), mint.toBuffer()],
+        ASSOCIATED_TOKEN_PROGRAM_ID
+      );
+      return address;
+    }
+
+    function createInitializeMintInstruction(mint, decimals, mintAuthority, freezeAuthority, programId) {
+      const keys = [
+        { pubkey: mint, isSigner: false, isWritable: true }
+      ];
+      const data = Buffer.alloc(67);
+      data.writeUInt8(0, 0);
+      data.writeUInt8(decimals, 1);
+      data.writeUInt8(1, 2);
+      mintAuthority.toBuffer().copy(data, 3);
+      if (freezeAuthority) {
+        data.writeUInt8(1, 35);
+        freezeAuthority.toBuffer().copy(data, 36);
+      } else {
+        data.writeUInt8(0, 35);
+      }
+      return new solanaWeb3.TransactionInstruction({ keys, programId, data: data.slice(0, freezeAuthority ? 67 : 35) });
+    }
+
+    function createAssociatedTokenAccountInstruction(payer, associatedToken, owner, mint, programId, associatedProgramId) {
+      const keys = [
+        { pubkey: payer, isSigner: true, isWritable: true },
+        { pubkey: associatedToken, isSigner: false, isWritable: true },
+        { pubkey: owner, isSigner: false, isWritable: false },
+        { pubkey: mint, isSigner: false, isWritable: false },
+        { pubkey: solanaWeb3.SystemProgram.programId, isSigner: false, isWritable: false },
+        { pubkey: programId, isSigner: false, isWritable: false }
+      ];
+      return new solanaWeb3.TransactionInstruction({ keys, programId: associatedProgramId, data: Buffer.alloc(0) });
+    }
+
+    function createMintToInstruction(mint, destination, authority, amount, programId) {
+      const keys = [
+        { pubkey: mint, isSigner: false, isWritable: true },
+        { pubkey: destination, isSigner: false, isWritable: true },
+        { pubkey: authority, isSigner: true, isWritable: false }
+      ];
+      const data = Buffer.alloc(9);
+      data.writeUInt8(7, 0);
+      const bigAmount = BigInt.asUintN(64, BigInt(amount));
+      const view = new DataView(data.buffer);
+      view.setBigUint64(1, bigAmount, true);
+      return new solanaWeb3.TransactionInstruction({ keys, programId, data });
     }
 
     const PLATFORM_FEE_BPS = 0;
@@ -671,40 +732,20 @@
         if (imageFile) imageUrl = await readFileAsDataURL(imageFile);
         const mintKeypair = solanaWeb3.Keypair.generate();
         const mintPubkey = mintKeypair.publicKey;
+        const ownerPubkey = new solanaWeb3.PublicKey(pubkey);
         status.textContent = 'BUILDING TRANSACTION...';
         const lamports = await connection.getMinimumBalanceForRentExemption(82);
         const createAccountIx = solanaWeb3.SystemProgram.createAccount({
-          fromPubkey: new solanaWeb3.PublicKey(pubkey),
+          fromPubkey: ownerPubkey,
           newAccountPubkey: mintPubkey,
           space: 82,
           lamports: lamports,
-          programId: splToken.TOKEN_PROGRAM_ID
+          programId: TOKEN_PROGRAM_ID
         });
-        const initMintIx = splToken.createInitializeMintInstruction(
-          mintPubkey,
-          9,
-          new solanaWeb3.PublicKey(pubkey),
-          new solanaWeb3.PublicKey(pubkey),
-          splToken.TOKEN_PROGRAM_ID
-        );
-        const associatedTokenAccount = await splToken.getAssociatedTokenAddress(
-          mintPubkey,
-          new solanaWeb3.PublicKey(pubkey)
-        );
-        const createATAIx = splToken.createAssociatedTokenAccountInstruction(
-          new solanaWeb3.PublicKey(pubkey),
-          associatedTokenAccount,
-          new solanaWeb3.PublicKey(pubkey),
-          mintPubkey
-        );
-        const mintToIx = splToken.createMintToInstruction(
-          mintPubkey,
-          associatedTokenAccount,
-          new solanaWeb3.PublicKey(pubkey),
-          supply,
-          [],
-          splToken.TOKEN_PROGRAM_ID
-        );
+        const initMintIx = createInitializeMintInstruction(mintPubkey, 9, ownerPubkey, null, TOKEN_PROGRAM_ID);
+        const associatedTokenAccount = await getAssociatedTokenAddress(mintPubkey, ownerPubkey);
+        const createATAIx = createAssociatedTokenAccountInstruction(ownerPubkey, associatedTokenAccount, ownerPubkey, mintPubkey, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
+        const mintToIx = createMintToInstruction(mintPubkey, associatedTokenAccount, ownerPubkey, supply, TOKEN_PROGRAM_ID);
         const transaction = new solanaWeb3.Transaction();
         transaction.add(createAccountIx, initMintIx, createATAIx, mintToIx);
         status.textContent = 'SIGNING TRANSACTION...';
@@ -752,22 +793,6 @@
         reader.onloadend = () => resolve(reader.result);
         reader.readAsDataURL(file);
       });
-    }
-
-    async function signAndSendTransaction(transaction, additionalSigners = []) {
-      if (!currentWallet || !currentPublicKey) throw new Error('Wallet not connected');
-      const pubKey = new solanaWeb3.PublicKey(currentPublicKey);
-      transaction.feePayer = pubKey;
-      const { blockhash } = await connection.getLatestBlockhash();
-      transaction.recentBlockhash = blockhash;
-      if (additionalSigners.length > 0) transaction.partialSign(...additionalSigners);
-      const signed = await currentWallet.signTransaction(transaction);
-      const signature = await connection.sendRawTransaction(signed.serialize(), {
-        maxRetries: 3,
-        skipPreflight: false
-      });
-      await connection.confirmTransaction(signature, 'confirmed');
-      return signature;
     }
 
     function loadHoldings() {
