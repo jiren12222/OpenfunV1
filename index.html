@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>OPENFUN</title>
   <script src="https://unpkg.com/@solana/web3.js@1.87.6/lib/index.iife.min.js"></script>
-  <script src="https://unpkg.com/@solana/spl-token@0.3.9/lib/index.iife.min.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e5e5e5;min-height:100vh;padding-bottom:80px;-webkit-font-smoothing:antialiased}
@@ -55,7 +54,7 @@
     .token-detail-header img{width:64px;height:64px;border-radius:12px;object-fit:cover;background:#1a1a1a}
     .token-detail-info h1{font-size:20px;font-weight:900;color:#fff;text-transform:uppercase}
     .token-detail-info .symbol{color:#a78bfa;font-weight:700;font-size:14px}
-    .token-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px}
+    .token-stats{display:grid;grid-template-columns:repeat(2,1fr));gap:10px;margin-bottom:20px}
     .stat-card{background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:12px}
     .stat-card .label{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px;font-weight:700}
     .stat-card .value{font-size:16px;font-weight:800;color:#fff;margin-top:4px}
@@ -93,7 +92,7 @@
     .wallet-info{text-align:center;margin-bottom:20px}
     .wallet-info p:first-child{font-size:13px;color:#a78bfa;font-weight:700;word-break:break-all}
     .wallet-info p:last-child{font-size:24px;font-weight:900;color:#fff;margin-top:8px}
-    .stats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px}
+    .stats-grid{display:grid;grid-template-columns:repeat(2,1fr));gap:10px;margin-bottom:20px}
     .stat-box{background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:14px;text-align:center}
     .stat-label{display:block;font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:4px}
     .stat-value{display:block;font-size:20px;font-weight:900;color:#fff}
@@ -288,7 +287,16 @@
     const NETWORK = 'https://mainnet.helius-rpc.com/?api-key=3b40bb84-eb28-4b1e-9cdb-cc93fb602326';
     const connection = new solanaWeb3.Connection(NETWORK, 'confirmed');
     const { PublicKey, Transaction, SystemProgram, Keypair } = solanaWeb3;
-    const splToken = window.splToken;
+
+    // SPL Token Program IDs
+    const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+    const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
+    const RENT_SYSVAR = new PublicKey('SysvarRent111111111111111111111111111111111');
+
+    // Hardcoded sizes (no external lib needed)
+    const MINT_SIZE = 82;
+    const TOKEN_ACCOUNT_SIZE = 165;
+
     let currentWallet = null;
     let currentPublicKey = null;
 
@@ -297,7 +305,7 @@
     let tradeCount = parseInt(localStorage.getItem('openfun_trades') || '0');
     let creatorFees = parseFloat(localStorage.getItem('openfun_fees') || '0');
 
-    // ============ WALLET DETECTION ============
+    // ============ WALLET ============
     const WALLETS = [
       { name: 'Phantom', id: 'phantom', icon: 'https://phantom.app/img/phantom-icon-purple.png' },
       { name: 'Solflare', id: 'solflare', icon: 'https://solflare.com/assets/logo-icon.png' },
@@ -312,7 +320,6 @@
       return available.length ? available : WALLETS;
     }
 
-    // ============ PAGE NAVIGATION ============
     function showPage(pageId) {
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
       document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
@@ -320,13 +327,11 @@
       if (page) page.classList.add('active');
       const navBtn = document.querySelector(`.nav-btn[data-page="${pageId}"]`);
       if (navBtn) navBtn.classList.add('active');
-      
       if (pageId === 'homePage') loadHomeData();
       if (pageId === 'profilePage') loadProfile();
       if (pageId === 'holdingsPage') loadHoldings();
     }
 
-    // ============ WALLET MODAL ============
     function showWalletModal() {
       if (currentWallet) { disconnectWallet(); return; }
       const modal = document.getElementById('walletModal');
@@ -372,9 +377,7 @@
     }
 
     function disconnectWallet() {
-      if (currentWallet && currentWallet.disconnect) {
-        currentWallet.disconnect();
-      }
+      if (currentWallet && currentWallet.disconnect) currentWallet.disconnect();
       currentWallet = null;
       currentPublicKey = null;
       localStorage.removeItem('openfun_wallet');
@@ -395,13 +398,10 @@
 
     async function getBalance() {
       if (!currentPublicKey) return 0;
-      try {
-        const bal = await connection.getBalance(currentPublicKey);
-        return bal / 1e9;
-      } catch (e) { return 0; }
+      try { return (await connection.getBalance(currentPublicKey)) / 1e9; }
+      catch (e) { return 0; }
     }
 
-    // ============ AUTO-RECONNECT ============
     async function autoConnect() {
       const savedWallet = localStorage.getItem('openfun_wallet');
       const savedPubkey = localStorage.getItem('openfun_pubkey');
@@ -422,12 +422,98 @@
     }
 
 
+    // ============ RAW SPL TOKEN INSTRUCTIONS ============
+    // These construct SPL Token program instructions manually using Uint8Array
+    // No external library needed - works on any browser
+
+    function createInitializeMintInstruction(mint, decimals, mintAuthority, freezeAuthority = null) {
+      // Instruction 0: InitializeMint
+      // Data: [0, decimals(1), mintAuthority(32), freezeOption(1), freezeAuthority(0 or 32)]
+      const data = new Uint8Array(freezeAuthority ? 68 : 35);
+      data[0] = 0; // discriminator
+      data[1] = decimals;
+      const authBytes = mintAuthority.toBytes();
+      data.set(authBytes, 2);
+      if (freezeAuthority) {
+        data[34] = 1;
+        data.set(freezeAuthority.toBytes(), 35);
+      } else {
+        data[34] = 0;
+      }
+      return new solanaWeb3.TransactionInstruction({
+        keys: [
+          { pubkey: mint, isSigner: false, isWritable: true },
+          { pubkey: RENT_SYSVAR, isSigner: false, isWritable: false }
+        ],
+        programId: TOKEN_PROGRAM_ID,
+        data: Buffer.from(data)
+      });
+    }
+
+    function createMintToInstruction(mint, destination, authority, amount) {
+      // Instruction 7: MintTo
+      // Data: [7, amount(u64 LE)]
+      const data = new Uint8Array(9);
+      data[0] = 7;
+      const view = new DataView(data.buffer);
+      view.setBigUint64(1, BigInt(amount), true);
+      return new solanaWeb3.TransactionInstruction({
+        keys: [
+          { pubkey: mint, isSigner: false, isWritable: true },
+          { pubkey: destination, isSigner: false, isWritable: true },
+          { pubkey: authority, isSigner: true, isWritable: false }
+        ],
+        programId: TOKEN_PROGRAM_ID,
+        data: Buffer.from(data)
+      });
+    }
+
+    function createInitializeAccountInstruction(account, mint, owner) {
+      // Instruction 1: InitializeAccount
+      // Data: [1]
+      return new solanaWeb3.TransactionInstruction({
+        keys: [
+          { pubkey: account, isSigner: false, isWritable: true },
+          { pubkey: mint, isSigner: false, isWritable: false },
+          { pubkey: owner, isSigner: false, isWritable: false },
+          { pubkey: RENT_SYSVAR, isSigner: false, isWritable: false }
+        ],
+        programId: TOKEN_PROGRAM_ID,
+        data: Buffer.from([1])
+      });
+    }
+
+    async function getAssociatedTokenAddress(mint, owner) {
+      // PDA: [owner, tokenProgram, mint, associatedTokenProgram]
+      const seeds = [
+        owner.toBuffer(),
+        TOKEN_PROGRAM_ID.toBuffer(),
+        mint.toBuffer()
+      ];
+      const [address] = await PublicKey.findProgramAddress(seeds, ASSOCIATED_TOKEN_PROGRAM_ID);
+      return address;
+    }
+
+    function createAssociatedTokenAccountInstruction(payer, ata, owner, mint) {
+      // Associated Token Account creation
+      return new solanaWeb3.TransactionInstruction({
+        keys: [
+          { pubkey: payer, isSigner: true, isWritable: true },
+          { pubkey: ata, isSigner: false, isWritable: true },
+          { pubkey: owner, isSigner: false, isWritable: false },
+          { pubkey: mint, isSigner: false, isWritable: false },
+          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+          { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+          { pubkey: RENT_SYSVAR, isSigner: false, isWritable: false }
+        ],
+        programId: ASSOCIATED_TOKEN_PROGRAM_ID,
+        data: Buffer.from([])
+      });
+    }
+
     // ============ TOKEN LAUNCH ============
     async function launchToken() {
-      if (!currentPublicKey) {
-        alert('Connect wallet first!');
-        return;
-      }
+      if (!currentPublicKey) { alert('Connect wallet first!'); return; }
 
       const name = document.getElementById('tokenName').value.trim();
       const symbol = document.getElementById('tokenSymbol').value.trim().toUpperCase();
@@ -444,41 +530,27 @@
       }
 
       btn.disabled = true;
-      statusEl.textContent = 'Preparing transaction...';
+      statusEl.textContent = 'Preparing...';
       statusEl.className = 'launch-status loading';
 
       try {
-        // Check balance
         const balance = await getBalance();
-        if (balance < 0.005) {
-          throw new Error('Need at least 0.005 SOL for fees');
-        }
+        if (balance < 0.005) throw new Error('Need at least 0.005 SOL');
 
-        // Generate mint keypair
         const mintKeypair = Keypair.generate();
         const mintPubkey = mintKeypair.publicKey;
-
-        // Calculate supply with decimals
         const decimals = 9;
         const totalSupply = BigInt(supplyRaw) * BigInt(10 ** decimals);
 
-        // Get rent exemptions
-        const mintRent = await connection.getMinimumBalanceForRentExemption(splToken.MINT_SIZE);
-        const ataRent = await connection.getMinimumBalanceForRentExemption(splToken.ACCOUNT_SIZE);
+        statusEl.textContent = 'Getting rent exemption...';
+        const mintRent = await connection.getMinimumBalanceForRentExemption(MINT_SIZE);
+        const ataRent = await connection.getMinimumBalanceForRentExemption(TOKEN_ACCOUNT_SIZE);
 
-        // Get ATA for payer
-        const ata = await splToken.getAssociatedTokenAddress(
-          mintPubkey,
-          currentPublicKey,
-          false,
-          splToken.TOKEN_PROGRAM_ID,
-          splToken.ASSOCIATED_TOKEN_PROGRAM_ID
-        );
+        statusEl.textContent = 'Deriving ATA...';
+        const ata = await getAssociatedTokenAddress(mintPubkey, currentPublicKey);
 
-        // Get recent blockhash
         const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
 
-        // Build transaction
         const tx = new Transaction();
         tx.recentBlockhash = blockhash;
         tx.feePayer = currentPublicKey;
@@ -487,48 +559,27 @@
         tx.add(SystemProgram.createAccount({
           fromPubkey: currentPublicKey,
           newAccountPubkey: mintPubkey,
-          space: splToken.MINT_SIZE,
+          space: MINT_SIZE,
           lamports: mintRent,
-          programId: splToken.TOKEN_PROGRAM_ID
+          programId: TOKEN_PROGRAM_ID
         }));
 
         // 2. Initialize mint
-        tx.add(splToken.createInitializeMintInstruction(
-          mintPubkey,
-          decimals,
-          currentPublicKey,
-          null,
-          splToken.TOKEN_PROGRAM_ID
-        ));
+        tx.add(createInitializeMintInstruction(mintPubkey, decimals, currentPublicKey, null));
 
         // 3. Create ATA
-        tx.add(splToken.createAssociatedTokenAccountInstruction(
-          currentPublicKey,
-          ata,
-          currentPublicKey,
-          mintPubkey,
-          splToken.TOKEN_PROGRAM_ID,
-          splToken.ASSOCIATED_TOKEN_PROGRAM_ID
-        ));
+        tx.add(createAssociatedTokenAccountInstruction(currentPublicKey, ata, currentPublicKey, mintPubkey));
 
-        // 4. Mint full supply to ATA
-        tx.add(splToken.createMintToInstruction(
-          mintPubkey,
-          ata,
-          currentPublicKey,
-          totalSupply,
-          [],
-          splToken.TOKEN_PROGRAM_ID
-        ));
+        // 4. Mint full supply
+        tx.add(createMintToInstruction(mintPubkey, ata, currentPublicKey, totalSupply));
 
         // Sign with mint keypair
         tx.partialSign(mintKeypair);
 
-        // Send via wallet
         statusEl.textContent = 'Signing with wallet...';
         const signed = await currentWallet.signTransaction(tx);
-        
-        statusEl.textContent = 'Sending transaction...';
+
+        statusEl.textContent = 'Sending...';
         const sig = await connection.sendRawTransaction(signed.serialize(), {
           skipPreflight: false,
           preflightCommitment: 'confirmed'
@@ -540,14 +591,13 @@
         // Handle image
         let imageData = null;
         if (imageFile) {
-          const reader = new FileReader();
           imageData = await new Promise((resolve) => {
+            const reader = new FileReader();
             reader.onload = (e) => resolve(e.target.result);
             reader.readAsDataURL(imageFile);
           });
         }
 
-        // Save token data
         const tokenData = {
           mint: mintPubkey.toString(),
           name, symbol, desc,
@@ -561,14 +611,12 @@
         platformTokens.unshift(tokenData);
         localStorage.setItem('openfun_tokens', JSON.stringify(platformTokens));
 
-        // Update launch count
         const launched = parseInt(localStorage.getItem('openfun_launched') || '0') + 1;
         localStorage.setItem('openfun_launched', launched.toString());
 
-        statusEl.textContent = '✅ TOKEN LAUNCHED! Mint: ' + mintPubkey.toString().slice(0, 8) + '...';
+        statusEl.textContent = '✅ LAUNCHED! Mint: ' + mintPubkey.toString().slice(0, 8) + '...';
         statusEl.className = 'launch-status success';
 
-        // Clear form
         document.getElementById('tokenName').value = '';
         document.getElementById('tokenSymbol').value = '';
         document.getElementById('tokenDesc').value = '';
@@ -588,38 +636,31 @@
     document.getElementById('launchBtn').addEventListener('click', launchToken);
 
 
-    // ============ DEXSCREENER API ============
-    async function fetchDexScreenerTrending() {
-      try {
-        // Fetch trending Solana tokens from DexScreener
-        const resp = await fetch('https://api.dexscreener.com/latest/dex/search?q=solana');
-        const data = await resp.json();
-        if (!data.pairs) return [];
-        // Sort by volume, take top 10
-        return data.pairs
-          .filter(p => p.chainId === 'solana')
-          .sort((a, b) => (b.volume?.h24 || 0) - (a.volume?.h24 || 0))
-          .slice(0, 10);
-      } catch (e) {
-        console.error('DexScreener error:', e);
-        return [];
-      }
-    }
-
-    async function fetchTokenDetails(address) {
-      try {
-        const resp = await fetch(`https://api.dexscreener.com/token-pairs/v1/solana/${address}`);
-        return await resp.json();
-      } catch (e) {
-        console.error('Token details error:', e);
-        return [];
-      }
-    }
-
     // ============ HOME PAGE ============
-    async function loadHomeData() {
-      // Load platform tokens (new launches)
+    function loadHomeData() {
+      const trendingContainer = document.getElementById('trendingTokens');
       const newContainer = document.getElementById('newTokens');
+
+      // TRENDING: Only platform tokens, sorted by volume/activity
+      // Empty until we have real trading data
+      const trendingTokens = platformTokens.slice(0, 10);
+      if (trendingTokens.length === 0) {
+        trendingContainer.className = 'token-grid empty';
+        trendingContainer.innerHTML = '<p class="empty-msg">NO PLATFORM TOKENS YET. BE THE FIRST TO LAUNCH!</p>';
+      } else {
+        trendingContainer.className = 'token-grid';
+        trendingContainer.innerHTML = trendingTokens.map((t, i) => `
+          <div class="token-card" onclick="showTokenDetail('${t.mint}')">
+            <img src="${t.image || 'https://via.placeholder.com/200?text=' + t.symbol}" alt="${t.name}">
+            <div class="token-name">${t.name}</div>
+            <div class="token-symbol">${t.symbol}</div>
+            <div class="token-price">PLATFORM</div>
+            <span class="token-tag ${i < 3 ? 'tag-hot' : 'tag-safe'}">${i < 3 ? 'HOT' : 'TRENDING'}</span>
+          </div>
+        `).join('');
+      }
+
+      // NEW LAUNCHES: All platform tokens
       if (platformTokens.length === 0) {
         newContainer.innerHTML = '<div class="token-grid empty"><p class="empty-msg">NO LAUNCHES YET</p></div>';
       } else {
@@ -628,29 +669,8 @@
             <img src="${t.image || 'https://via.placeholder.com/200?text=' + t.symbol}" alt="${t.name}">
             <div class="token-name">${t.name}</div>
             <div class="token-symbol">${t.symbol}</div>
-            <div class="token-price">NEW LAUNCH</div>
+            <div class="token-price">NEW</div>
             <span class="token-tag tag-new">NEW</span>
-          </div>
-        `).join('');
-      }
-
-      // Load trending from DexScreener
-      const trendingContainer = document.getElementById('trendingTokens');
-      const trending = await fetchDexScreenerTrending();
-      
-      if (trending.length === 0 && platformTokens.length === 0) {
-        trendingContainer.className = 'token-grid empty';
-        trendingContainer.innerHTML = '<p class="empty-msg">NO PLATFORM TOKENS YET. BE THE FIRST TO LAUNCH!</p>';
-      } else if (trending.length > 0) {
-        trendingContainer.className = 'token-grid';
-        trendingContainer.innerHTML = trending.map((p, i) => `
-          <div class="token-card" onclick="showTokenDetail('${p.baseToken.address}', true)">
-            <img src="${p.info?.imageUrl || 'https://via.placeholder.com/200?text=' + p.baseToken.symbol}" alt="${p.baseToken.name}">
-            <div class="token-name">${p.baseToken.name}</div>
-            <div class="token-symbol">${p.baseToken.symbol}</div>
-            <div class="token-price">$${parseFloat(p.priceUsd || 0).toFixed(6)}</div>
-            <div class="token-mcap">MCap: $${formatNumber(p.marketCap || p.fdv || 0)}</div>
-            <span class="token-tag ${i < 3 ? 'tag-hot' : 'tag-safe'}">${i < 3 ? 'HOT' : 'TRENDING'}</span>
           </div>
         `).join('');
       }
@@ -664,109 +684,62 @@
     }
 
     // ============ TOKEN DETAIL ============
-    let currentTokenMint = null;
-    let currentTokenIsDex = false;
-
-    async function showTokenDetail(mint, isDex = false) {
-      currentTokenMint = mint;
-      currentTokenIsDex = isDex;
+    async function showTokenDetail(mint) {
       showPage('tokenDetailPage');
       const container = document.getElementById('tokenDetailContent');
       container.innerHTML = '<p style="text-align:center;color:#888;padding:40px;">Loading...</p>';
 
+      const tokenData = platformTokens.find(t => t.mint === mint);
+      if (!tokenData) {
+        container.innerHTML = '<p style="text-align:center;color:#ef4444;padding:40px;">Token not found</p>';
+        return;
+      }
+
+      // Try to get DexScreener data
+      let price = 'N/A', mcap = 'N/A', liq = 'N/A', vol = 'N/A';
       try {
-        let tokenData, pairs;
-        
-        if (isDex) {
-          pairs = await fetchTokenDetails(mint);
-          if (pairs.length > 0) {
-            const p = pairs[0];
-            tokenData = {
-              mint: mint,
-              name: p.baseToken.name,
-              symbol: p.baseToken.symbol,
-              price: p.priceUsd,
-              marketCap: p.marketCap || p.fdv,
-              liquidity: p.liquidity?.usd,
-              volume24h: p.volume?.h24,
-              image: p.info?.imageUrl,
-              pairAddress: p.pairAddress,
-              dexId: p.dexId
-            };
-          }
-        } else {
-          tokenData = platformTokens.find(t => t.mint === mint);
-          if (tokenData) {
-            // Try to get DexScreener data too
-            pairs = await fetchTokenDetails(mint);
-            if (pairs.length > 0) {
-              const p = pairs[0];
-              tokenData.price = p.priceUsd;
-              tokenData.marketCap = p.marketCap || p.fdv;
-              tokenData.liquidity = p.liquidity?.usd;
-              tokenData.volume24h = p.volume?.h24;
-              tokenData.pairAddress = p.pairAddress;
-            }
-          }
+        const resp = await fetch(`https://api.dexscreener.com/token-pairs/v1/solana/${mint}`);
+        const pairs = await resp.json();
+        if (pairs && pairs.length > 0) {
+          const p = pairs[0];
+          price = p.priceUsd ? parseFloat(p.priceUsd).toFixed(6) : 'N/A';
+          mcap = p.marketCap || p.fdv ? formatNumber(p.marketCap || p.fdv) : 'N/A';
+          liq = p.liquidity?.usd ? formatNumber(p.liquidity.usd) : 'N/A';
+          vol = p.volume?.h24 ? formatNumber(p.volume.h24) : 'N/A';
         }
+      } catch (e) { console.log('DexScreener fetch failed', e); }
 
-        if (!tokenData) {
-          container.innerHTML = '<p style="text-align:center;color:#ef4444;padding:40px;">Token not found</p>';
-          return;
-        }
-
-        const price = tokenData.price ? parseFloat(tokenData.price).toFixed(6) : 'N/A';
-        const mcap = tokenData.marketCap ? formatNumber(tokenData.marketCap) : 'N/A';
-        const liq = tokenData.liquidity ? formatNumber(tokenData.liquidity) : 'N/A';
-        const vol = tokenData.volume24h ? formatNumber(tokenData.volume24h) : 'N/A';
-
-        container.innerHTML = `
-          <div class="token-detail">
-            <div class="token-detail-header">
-              <img src="${tokenData.image || 'https://via.placeholder.com/64?text=' + tokenData.symbol}" alt="${tokenData.name}">
-              <div class="token-detail-info">
-                <h1>${tokenData.name}</h1>
-                <div class="symbol">${tokenData.symbol}</div>
-              </div>
-            </div>
-            <div class="token-stats">
-              <div class="stat-card">
-                <div class="label">PRICE</div>
-                <div class="value">$${price}</div>
-              </div>
-              <div class="stat-card">
-                <div class="label">MARKET CAP</div>
-                <div class="value">$${mcap}</div>
-              </div>
-              <div class="stat-card">
-                <div class="label">LIQUIDITY</div>
-                <div class="value">$${liq}</div>
-              </div>
-              <div class="stat-card">
-                <div class="label">VOLUME 24H</div>
-                <div class="value">$${vol}</div>
-              </div>
-            </div>
-            <div class="chart-container">
-              <iframe src="https://dexscreener.com/solana/${tokenData.mint}?embed=1&theme=dark" 
-                allowfullscreen loading="lazy"></iframe>
-            </div>
-            <div class="buy-section">
-              <h3>BUY WITH JUPITER</h3>
-              <div class="buy-input-group">
-                <input type="number" id="buyAmount" placeholder="SOL amount" min="0.001" step="0.001">
-              </div>
-              <button class="btn-buy" onclick="buyWithJupiter('${tokenData.mint}')">BUY ${tokenData.symbol}</button>
-              <div class="contract-box">
-                <code id="contractAddr">${tokenData.mint}</code>
-                <button onclick="copyContract()">COPY</button>
-              </div>
+      container.innerHTML = `
+        <div class="token-detail">
+          <div class="token-detail-header">
+            <img src="${tokenData.image || 'https://via.placeholder.com/64?text=' + tokenData.symbol}" alt="${tokenData.name}">
+            <div class="token-detail-info">
+              <h1>${tokenData.name}</h1>
+              <div class="symbol">${tokenData.symbol}</div>
             </div>
           </div>
-        `;
-      } catch (e) {
-        container.innerHTML = '<p style="text-align:center;color:#ef4444;padding:40px;">Error loading token</p>';
-      }
+          <div class="token-stats">
+            <div class="stat-card"><div class="label">PRICE</div><div class="value">$${price}</div></div>
+            <div class="stat-card"><div class="label">MARKET CAP</div><div class="value">$${mcap}</div></div>
+            <div class="stat-card"><div class="label">LIQUIDITY</div><div class="value">$${liq}</div></div>
+            <div class="stat-card"><div class="label">VOLUME 24H</div><div class="value">$${vol}</div></div>
+          </div>
+          <div class="chart-container">
+            <iframe src="https://dexscreener.com/solana/${mint}?embed=1&theme=dark" allowfullscreen loading="lazy"></iframe>
+          </div>
+          <div class="buy-section">
+            <h3>BUY WITH JUPITER</h3>
+            <div class="buy-input-group">
+              <input type="number" id="buyAmount" placeholder="SOL amount" min="0.001" step="0.001">
+            </div>
+            <button class="btn-buy" onclick="buyWithJupiter('${mint}', '${tokenData.symbol}')">BUY ${tokenData.symbol}</button>
+            <div class="contract-box">
+              <code id="contractAddr">${mint}</code>
+              <button onclick="copyContract()">COPY</button>
+            </div>
+          </div>
+        </div>
+      `;
     }
 
     function copyContract() {
@@ -777,34 +750,23 @@
 
 
     // ============ JUPITER BUY ============
-    async function buyWithJupiter(outputMint) {
-      if (!currentPublicKey) {
-        alert('Connect wallet first!');
-        return;
-      }
+    async function buyWithJupiter(outputMint, symbol) {
+      if (!currentPublicKey) { alert('Connect wallet first!'); return; }
       const amount = document.getElementById('buyAmount').value;
-      if (!amount || parseFloat(amount) <= 0) {
-        alert('Enter SOL amount');
-        return;
-      }
+      if (!amount || parseFloat(amount) <= 0) { alert('Enter SOL amount'); return; }
 
       const btn = document.querySelector('.btn-buy');
       btn.textContent = 'GETTING QUOTE...';
       btn.disabled = true;
 
       try {
-        // Step 1: Get quote from Jupiter
         const lamports = Math.floor(parseFloat(amount) * 1e9);
         const quoteResp = await fetch(
           `https://quote-api.jup.ag/v6/quote?inputMint=So11111111111111111111111111111111111111112&outputMint=${outputMint}&amount=${lamports}&slippageBps=50`
         );
         const quote = await quoteResp.json();
+        if (quote.error) throw new Error(quote.error);
 
-        if (quote.error) {
-          throw new Error(quote.error);
-        }
-
-        // Step 2: Get swap instructions
         const swapResp = await fetch('https://quote-api.jup.ag/v6/swap', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -816,13 +778,9 @@
           })
         });
         const swapData = await swapResp.json();
+        if (swapData.error) throw new Error(swapData.error);
 
-        if (swapData.error) {
-          throw new Error(swapData.error);
-        }
-
-        // Step 3: Deserialize and sign transaction
-        const swapTxBuf = Buffer.from(swapData.swapTransaction, 'base64');
+        const swapTxBuf = Uint8Array.from(atob(swapData.swapTransaction), c => c.charCodeAt(0));
         const tx = Transaction.from(swapTxBuf);
 
         btn.textContent = 'SIGNING...';
@@ -833,26 +791,18 @@
           skipPreflight: false,
           preflightCommitment: 'confirmed'
         });
-
         await connection.confirmTransaction(sig, 'confirmed');
 
-        // Record trade for VIP
         tradeCount++;
         localStorage.setItem('openfun_trades', tradeCount.toString());
 
         btn.textContent = '✅ BOUGHT! TX: ' + sig.slice(0, 8) + '...';
-        setTimeout(() => {
-          btn.textContent = 'BUY ' + outputMint.slice(0, 4);
-          btn.disabled = false;
-        }, 3000);
+        setTimeout(() => { btn.textContent = 'BUY ' + symbol; btn.disabled = false; }, 3000);
 
       } catch (e) {
         console.error('Buy error:', e);
-        btn.textContent = '❌ FAILED: ' + (e.message || 'Unknown error');
-        setTimeout(() => {
-          btn.textContent = 'BUY';
-          btn.disabled = false;
-        }, 3000);
+        btn.textContent = '❌ FAILED: ' + (e.message || 'Unknown');
+        setTimeout(() => { btn.textContent = 'BUY'; btn.disabled = false; }, 3000);
       }
     }
 
@@ -868,8 +818,7 @@
 
       if (currentPublicKey) {
         walletEl.textContent = currentPublicKey.toString();
-        const bal = await getBalance();
-        balanceEl.textContent = bal.toFixed(4) + ' SOL';
+        balanceEl.textContent = (await getBalance()).toFixed(4) + ' SOL';
       } else {
         walletEl.textContent = 'NOT CONNECTED';
         balanceEl.textContent = '0 SOL';
@@ -900,10 +849,9 @@
       }
 
       try {
-        // Get all token accounts for this wallet
         const tokenAccounts = await connection.getParsedTokenAccountsByOwner(
           currentPublicKey,
-          { programId: splToken.TOKEN_PROGRAM_ID }
+          { programId: TOKEN_PROGRAM_ID }
         );
 
         const holdings = tokenAccounts.value
@@ -921,16 +869,19 @@
         }
 
         emptyState.style.display = 'none';
-        container.innerHTML = holdings.map(h => `
-          <div class="token-card" onclick="showTokenDetail('${h.mint}', true)">
-            <div class="token-name">${h.mint.slice(0, 8)}...</div>
-            <div class="token-symbol">BALANCE</div>
-            <div class="token-price">${h.amount.toLocaleString()}</div>
-          </div>
-        `).join('');
+        container.innerHTML = holdings.map(h => {
+          const token = platformTokens.find(t => t.mint === h.mint);
+          return `
+            <div class="token-card" onclick="showTokenDetail('${h.mint}')">
+              <img src="${token?.image || 'https://via.placeholder.com/200?text=???'}" alt="">
+              <div class="token-name">${token?.symbol || h.mint.slice(0, 8)}...</div>
+              <div class="token-symbol">${token?.name || 'UNKNOWN'}</div>
+              <div class="token-price">${h.amount.toLocaleString()}</div>
+            </div>
+          `;
+        }).join('');
 
       } catch (e) {
-        console.error('Holdings error:', e);
         container.innerHTML = '';
         emptyState.style.display = 'block';
       }
@@ -938,10 +889,7 @@
 
     // ============ CLAIM FEES ============
     document.getElementById('claimFeesBtn').addEventListener('click', () => {
-      if (creatorFees <= 0) {
-        alert('No fees to claim!');
-        return;
-      }
+      if (creatorFees <= 0) { alert('No fees to claim!'); return; }
       alert('Claimed ' + creatorFees.toFixed(4) + ' SOL!');
       creatorFees = 0;
       localStorage.setItem('openfun_fees', '0');
@@ -950,11 +898,7 @@
 
     // ============ INIT ============
     document.getElementById('walletBtn').addEventListener('click', showWalletModal);
-    
-    // Start
-    autoConnect().then(() => {
-      showPage('homePage');
-    });
+    autoConnect().then(() => showPage('homePage'));
 
   </script>
 </body>
