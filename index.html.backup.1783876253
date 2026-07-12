@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>OPENFUN</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+body{background:#0a0a0a;color:#fff;min-height:100vh;padding-bottom:80px}
+.header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #222}
+.logo{display:flex;align-items:center;gap:10px}
+.logo svg{width:28px;height:28px;fill:#a78bfa}
+.logo span{font-size:20px;font-weight:800;color:#a78bfa;letter-spacing:2px}
+.wallet-btn{background:#a78bfa;color:#000;border:none;padding:8px 16px;border-radius:20px;font-weight:700;font-size:13px;cursor:pointer}
+.wallet-btn.connected{background:#1a1a1a;color:#a78bfa;border:1px solid #a78bfa}
+.page{display:none;padding:16px}
+.page.active{display:block}
+.section-title{font-size:14px;font-weight:700;color:#a78bfa;text-transform:uppercase;letter-spacing:1px;margin:20px 0 12px}
+.token-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.token-card{background:#141414;border:1px solid #333;border-radius:16px;overflow:hidden;cursor:pointer;transition:border-color .2s}
+.token-card:hover{border-color:#a78bfa}
+.token-card img{width:100%;height:140px;object-fit:cover;background:#1a1a1a}
+.token-info{padding:12px}
+.token-name{font-size:16px;font-weight:700}
+.token-symbol{font-size:13px;color:#a78bfa;margin-top:2px}
+.token-mcap{font-size:14px;color:#22c55e;font-weight:700;margin-top:6px}
+.tag{position:absolute;top:8px;right:8px;background:#22c55e;color:#000;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;text-transform:uppercase}
+.tag.new{background:#22c55e}.tag.hot{background:#a78bfa}.tag.danger{background:#ef4444}
+.token-img-wrap{position:relative}
+.detail-header{display:flex;gap:16px;align-items:flex-start;margin-bottom:16px}
+.detail-header img{width:80px;height:80px;border-radius:16px;object-fit:cover;background:#1a1a1a}
+.detail-title h2{font-size:22px;font-weight:800}.detail-title p{color:#a78bfa;font-size:14px;font-weight:700}
+.bonding-curve{background:#141414;border:1px solid #333;border-radius:16px;padding:16px;margin:16px 0}
+.bc-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.bc-title{font-size:14px;font-weight:700;color:#a78bfa;text-transform:uppercase;letter-spacing:1px}
+.bc-status{font-size:12px;color:#22c55e;font-weight:700}
+.bc-stats{display:grid;grid-template-columns:repeat(3,1fr);text-align:center;margin-bottom:12px}
+.bc-stat-label{font-size:11px;color:#888;text-transform:uppercase}.bc-stat-value{font-size:18px;font-weight:700;margin-top:4px}
+.bc-chart{height:120px;background:#0a0a0a;border-radius:12px;position:relative;overflow:hidden;margin-bottom:12px}
+.bc-chart-line{position:absolute;bottom:0;left:0;right:0;height:100%;background:linear-gradient(180deg,rgba(167,139,250,.2),transparent)}
+.bc-chart svg{position:absolute;bottom:0;left:0;width:100%;height:100%}
+.bc-progress{text-align:center;font-size:13px;color:#888}
+.bc-progress span{color:#a78bfa;font-weight:700}
+.trade-box{background:#141414;border:1px solid #333;border-radius:16px;padding:16px;margin:16px 0}
+.trade-title{font-size:14px;font-weight:700;color:#a78bfa;text-transform:uppercase;margin-bottom:12px}
+.trade-input{width:100%;background:#0a0a0a;border:1px solid #333;border-radius:12px;padding:14px 16px;color:#fff;font-size:16px;margin-bottom:12px}
+.trade-btn{width:100%;padding:14px;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;margin-bottom:8px}
+.buy-btn{background:#22c55e;color:#000}.sell-btn{background:#ef4444;color:#fff}
+.ca-box{background:#0a0a0a;border:1px solid #333;border-radius:12px;padding:12px;display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+.ca-text{font-family:monospace;font-size:13px;color:#a78bfa}
+.ca-copy{background:#1a1a1a;border:1px solid #333;color:#fff;padding:6px 12px;border-radius:8px;font-size:12px;cursor:pointer}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#0a0a0a;border-top:1px solid #222;display:flex;justify-content:space-around;padding:8px 0;z-index:100}
+.bottom-nav button{background:none;border:none;color:#666;font-size:11px;font-weight:700;text-transform:uppercase;cursor:pointer;padding:8px 16px}
+.bottom-nav button.active{color:#a78bfa}
+.launch-form{background:#141414;border:1px solid #333;border-radius:16px;padding:16px}
+.launch-form input,.launch-form select{width:100%;background:#0a0a0a;border:1px solid #333;border-radius:12px;padding:14px 16px;color:#fff;font-size:16px;margin-bottom:12px}
+.launch-form label{font-size:12px;color:#888;text-transform:uppercase;font-weight:700;display:block;margin-bottom:6px}
+.launch-btn{width:100%;background:#a78bfa;color:#000;border:none;padding:16px;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer}
+.empty-state{text-align:center;padding:40px 20px;color:#666}
+.alert{position:fixed;top:20px;left:20px;right:20px;background:#1a1a1a;border:1px solid #333;border-radius:12px;padding:16px;z-index:200;display:none}
+.alert.show{display:block}.alert.error{border-color:#ef4444}.alert.success{border-color:#22c55e}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">
+    <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+    <span>OPENFUN</span>
+  </div>
+  <button class="wallet-btn" id="walletBtn" onclick="connectWallet()">CONNECT</button>
+</div>
+
+<div id="alertBox" class="alert"></div>
+
+<!-- HOME PAGE -->
+<div id="pageHome" class="page active">
+  <div class="section-title">TRENDING</div>
+  <div class="token-grid" id="trendingGrid"></div>
+  
+  <div class="section-title">NEW LAUNCHES</div>
+  <div class="token-grid" id="newLaunchesGrid"></div>
+</div>
+
+<!-- HOLDINGS PAGE -->
+<div id="pageHoldings" class="page">
+  <div class="section-title">YOUR HOLDINGS</div>
+  <div id="holdingsList"></div>
+</div>
+
+<!-- LAUNCH PAGE -->
+<div id="pageLaunch" class="page">
+  <div class="section-title">LAUNCH TOKEN</div>
+  <div class="launch-form">
+    <label>Token Name</label>
+    <input type="text" id="launchName" placeholder="e.g. Bibi Coin">
+    <label>Symbol</label>
+    <input type="text" id="launchSymbol" placeholder="e.g. BIBI">
+    <label>Total Supply</label>
+    <select id="launchSupply">
+      <option value="100000000">100M</option>
+      <option value="500000000">500M</option>
+      <option value="1000000000" selected>1B</option>
+      <option value="5000000000">5B</option>
+      <option value="10000000000">10B</option>
+    </select>
+    <label>Image URL (optional)</label>
+    <input type="text" id="launchImage" placeholder="https://...">
+    <button class="launch-btn" onclick="launchToken()">LAUNCH TOKEN</button>
+  </div>
+</div>
+
+<!-- PROFILE PAGE -->
+<div id="pageProfile" class="page">
+  <div class="section-title">PROFILE</div>
+  <div class="trade-box">
+    <p style="color:#888;font-size:13px">Wallet</p>
+    <p id="profileWallet" style="font-family:monospace;font-size:14px;margin-top:8px">Not connected</p>
+  </div>
+  <div class="trade-box">
+    <p style="color:#888;font-size:13px">VIP Status</p>
+    <p id="profileVIP" style="font-size:16px;font-weight:700;margin-top:8px">LOCKED</p>
+    <p style="color:#666;font-size:12px;margin-top:4px">Complete 10 trades to unlock</p>
+  </div>
+</div>
+
+<!-- TOKEN DETAIL PAGE -->
+<div id="pageDetail" class="page">
+  <div id="detailContent"></div>
+</div>
+
+<div class="bottom-nav">
+  <button class="active" onclick="showPage('home')">HOME</button>
+  <button onclick="showPage('holdings')">HOLDINGS</button>
+  <button onclick="showPage('launch')">LAUNCH</button>
+  <button onclick="showPage('profile')">PROFILE</button>
+</div>
+
+<script>
+// ============ CONFIG ============
+const BACKEND_URL = 'https://web-production-770c05.up.railway.app';
+const JUPITER_API = 'https://quote-api.jup.ag/v6';
+const HELIUS_RPC = 'https://devnet.helius-rpc.com/?api-key=3b40bb84-eb28-4b1e-9cdb-cc93fb602326';
+const TREASURY = '7cTdE23rMWkTNwtc1WLSDZSAzQSzBPmnpBLHtgG9oGFt';
+
+// ============ STATE ============
+let wallet = null;
+let walletAddress = null;
+let tokens = JSON.parse(localStorage.getItem('openfun_tokens') || '[]');
+let trades = parseInt(localStorage.getItem('openfun_trades') || '0');
+
+// ============ UTILS (NO BUFFER) ============
+function b64encode(bytes) {
+  const bin = Array.from(bytes, b => String.fromCharCode(b)).join('');
+  return btoa(bin);
+}
+
+function b64decode(str) {
+  const bin = atob(str);
+  return new Uint8Array(bin.length).map((_, i) => bin.charCodeAt(i));
+}
+
+function u8ToHex(u8) {
+  return Array.from(u8, b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function hexToU8(hex) {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < hex.length; i += 2) {
+    bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
+  }
+  return bytes;
+}
+
+function compactU16(v) {
+  if (v < 0x80) return new Uint8Array([v]);
+  if (v < 0x4000) return new Uint8Array([v & 0x7f | 0x80, v >> 7]);
+  return new Uint8Array([v & 0x7f | 0x80, (v >> 7) & 0x7f | 0x80, v >> 14]);
+}
+
+function showAlert(msg, type) {
+  const box = document.getElementById('alertBox');
+  box.textContent = msg;
+  box.className = 'alert show ' + (type || '');
+  setTimeout(() => box.className = 'alert', 3000);
+}
+
+function shortAddr(addr) {
+  return addr ? addr.slice(0, 4) + '...' + addr.slice(-4) : '';
+}
+
+// ============ WALLET ============
+async function connectWallet() {
+  const provider = window.phantom?.solana || window.solflare?.solana || window.backpack?.solana;
+  if (!provider) {
+    showAlert('Install Phantom, Solflare, or Backpack', 'error');
+    return;
+  }
+  try {
+    const resp = await provider.connect();
+    wallet = provider;
+    walletAddress = resp.publicKey.toString();
+    document.getElementById('walletBtn').textContent = shortAddr(walletAddress);
+    document.getElementById('walletBtn').classList.add('connected');
+    document.getElementById('profileWallet').textContent = walletAddress;
+    updateVIP();
+    loadHoldings();
+  } catch(e) {
+    showAlert('Connect failed: ' + e.message, 'error');
+  }
+}
+
+// ============ NAVIGATION ============
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.bottom-nav button').forEach(b => b.classList.remove('active'));
+  
+  if (page === 'home') {
+    document.getElementById('pageHome').classList.add('active');
+    document.querySelectorAll('.bottom-nav button')[0].classList.add('active');
+    loadTokens();
+  } else if (page === 'holdings') {
+    document.getElementById('pageHoldings').classList.add('active');
+    document.querySelectorAll('.bottom-nav button')[1].classList.add('active');
+    loadHoldings();
+  } else if (page === 'launch') {
+    document.getElementById('pageLaunch').classList.add('active');
+    document.querySelectorAll('.bottom-nav button')[2].classList.add('active');
+  } else if (page === 'profile') {
+    document.getElementById('pageProfile').classList.add('active');
+    document.querySelectorAll('.bottom-nav button')[3].classList.add('active');
+  } else if (page === 'detail') {
+    document.getElementById('pageDetail').classList.add('active');
+  }
+}
+
+// ============ TOKEN DISPLAY ============
+function createTokenCard(token) {
+  const div = document.createElement('div');
+  div.className = 'token-card';
+  div.onclick = () => showTokenDetail(token);
+  
+  const img = token.image || `https://placehold.co/400x400/8b5cf6/ffffff?text=${token.symbol}`;
+  const mcap = token.mcap_usd ? `$${token.mcap_usd.toLocaleString()}` : '$0';
+  
+  div.innerHTML = `
+    <div class="token-img-wrap">
+      <img src="${img}" onerror="this.src='https://placehold.co/400x400/333/fff?text=${token.symbol}'">
+      <span class="tag new">NEW</span>
+    </div>
+    <div class="token-info">
+      <div class="token-name">${token.name}</div>
+      <div class="token-symbol">${token.symbol}</div>
+      <div class="token-mcap">MC: ${mcap}</div>
+    </div>
+  `;
+  return div;
+}
+
+async function loadTokens() {
+  const trending = document.getElementById('trendingGrid');
+  const launches = document.getElementById('newLaunchesGrid');
+  trending.innerHTML = '';
+  launches.innerHTML = '';
+  
+  // Load from localStorage (backend saves here after launch)
+  const saved = JSON.parse(localStorage.getItem('openfun_tokens') || '[]');
+  
+  if (saved.length === 0) {
+    trending.innerHTML = '<div class="empty-state">No trending tokens yet</div>';
+  }
+  
+  saved.forEach(token => {
+    launches.appendChild(createTokenCard(token));
+  });
+}
+
+// ============ TOKEN DETAIL ============
+function showTokenDetail(token) {
+  showPage('detail');
+  const content = document.getElementById('detailContent');
+  
+  const img = token.image || `https://placehold.co/400x400/8b5cf6/ffffff?text=${token.symbol}`;
+  const price = token.price ? `$${token.price.toExponential(2)}` : '$0';
+  const mcap = token.mcap_usd ? `$${token.mcap_usd.toLocaleString()}` : '$0';
+  const bonded = token.virtual_sol ? token.virtual_sol.toFixed(2) : '0.00';
+  const progress = token.bonded_progress || 0;
+  
+  content.innerHTML = `
+    <div class="detail-header">
+      <img src="${img}" onerror="this.src='https://placehold.co/400x400/333/fff?text=${token.symbol}'">
+      <div class="detail-title">
+        <h2>${token.name}</h2>
+        <p>${token.symbol}</p>
+      </div>
+    </div>
+    
+    <div class="bonding-curve">
+      <div class="bc-header">
+        <span class="bc-title">BONDING CURVE</span>
+        <span class="bc-status">ACTIVE</span>
+      </div>
+      <div class="bc-stats">
+        <div><div class="bc-stat-label">PRICE</div><div class="bc-stat-value">${price}</div></div>
+        <div><div class="bc-stat-label">MCAP</div><div class="bc-stat-value">${mcap}</div></div>
+        <div><div class="bc-stat-label">HOLDERS</div><div class="bc-stat-value">${token.holders || 1}</div></div>
+      </div>
+      <div class="bc-chart">
+        <svg viewBox="0 0 100 50" preserveAspectRatio="none">
+          <defs><linearGradient id="grad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#a78bfa" stop-opacity="0.3"/><stop offset="100%" stop-color="#a78bfa" stop-opacity="0"/></linearGradient></defs>
+          <path d="M0,50 Q25,45 50,30 T100,0 L100,50 Z" fill="url(#grad)"/>
+          <path d="M0,50 Q25,45 50,30 T100,0" fill="none" stroke="#a78bfa" stroke-width="0.5"/>
+        </svg>
+      </div>
+      <div class="bc-progress">Progress: <span>${progress.toFixed(1)}%</span> | Bonded: <span>${bonded} SOL</span> | Target: <span>85 SOL</span></div>
+    </div>
+    
+    <div class="trade-box">
+      <div class="trade-title">BUY ${token.symbol}</div>
+      <input type="number" class="trade-input" id="buyAmount" placeholder="SOL amount" step="0.001" min="0.001">
+      <button class="trade-btn buy-btn" onclick="buyToken('${token.mint}')">BUY</button>
+      <button class="trade-btn sell-btn" onclick="sellToken('${token.mint}')">SELL</button>
+      <div class="ca-box">
+        <span class="ca-text" id="caText">${shortAddr(token.mint)}</span>
+        <button class="ca-copy" onclick="copyCA('${token.mint}')">COPY CA</button>
+      </div>
+    </div>
+    
+    <div style="margin-top:16px">
+      <a href="https://dexscreener.com/solana/${token.mint}?cluster=devnet" target="_blank" style="color:#a78bfa;font-size:13px">View on DexScreener</a>
+    </div>
+  `;
+}
+
+function copyCA(ca) {
+  navigator.clipboard.writeText(ca);
+  showAlert('Contract address copied!', 'success');
+}
+
+// ============ BUY / SELL ============
+async function buyToken(mint) {
+  if (!wallet) {
+    showAlert('Connect wallet first', 'error');
+    return;
+  }
+  const amount = parseFloat(document.getElementById('buyAmount').value);
+  if (!amount || amount <= 0) {
+    showAlert('Enter SOL amount', 'error');
+    return;
+  }
+  
+  try {
+    showAlert('Getting Jupiter quote...', '');
+    
+    // Jupiter swap: SOL → Token
+    const quoteUrl = `${JUPITER_API}/quote?inputMint=So11111111111111111111111111111111111111112&outputMint=${mint}&amount=${Math.floor(amount * 1e9)}&slippageBps=100&onlyDirectRoutes=true`;
+    const quoteResp = await fetch(quoteUrl);
+    const quote = await quoteResp.json();
+    
+    if (quote.error) {
+      showAlert('No route found: ' + quote.error, 'error');
+      return;
+    }
+    
+    // Get swap tx
+    const swapBody = {
+      quoteResponse: quote,
+      userPublicKey: walletAddress,
+      wrapAndUnwrapSol: true,
+      prioritizationFeeLamports: 10000
+    };
+    const swapResp = await fetch(`${JUPITER_API}/swap`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(swapBody)
+    });
+    const swapData = await swapResp.json();
+    
+    if (!swapData.swapTransaction) {
+      showAlert('Swap failed', 'error');
+      return;
+    }
+    
+    // Sign and send
+    const tx = swapData.swapTransaction;
+    const signed = await wallet.signTransaction(tx);
+    const sendResp = await fetch(HELIUS_RPC, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        jsonrpc: '2.0', id: 1,
+        method: 'sendTransaction',
+        params: [signed, {encoding: 'base64', skipPreflight: false, preflightCommitment: 'confirmed'}]
+      })
+    });
+    const sendResult = await sendResp.json();
+    
+    if (sendResult.error) {
+      showAlert('Transaction failed: ' + sendResult.error.message, 'error');
+      return;
+    }
+    
+    trades++;
+    localStorage.setItem('openfun_trades', trades);
+    updateVIP();
+    showAlert(`Bought! Tx: ${shortAddr(sendResult.result)}`, 'success');
+    
+  } catch(e) {
+    showAlert('Buy error: ' + e.message, 'error');
+  }
+}
+
+async function sellToken(mint) {
+  if (!wallet) {
+    showAlert('Connect wallet first', 'error');
+    return;
+  }
+  showAlert('Sell: Use Jupiter directly for now', 'error');
+}
+
+// ============ LAUNCH ============
+async function launchToken() {
+  const name = document.getElementById('launchName').value.trim();
+  const symbol = document.getElementById('launchSymbol').value.trim().toUpperCase();
+  const supply = parseInt(document.getElementById('launchSupply').value);
+  const imageUrl = document.getElementById('launchImage').value.trim();
+  
+  if (!name || !symbol) {
+    showAlert('Name and symbol required', 'error');
+    return;
+  }
+  
+  try {
+    showAlert('Launching token...', '');
+    
+    const resp = await fetch(`${BACKEND_URL}/launch`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        name, symbol, supply,
+        image_url: imageUrl
+      })
+    });
+    
+    const result = await resp.json();
+    
+    if (!result.success) {
+      showAlert('Launch failed: ' + (result.error?.message || JSON.stringify(result.error)), 'error');
+      return;
+    }
+    
+    // Save token
+    tokens.push(result);
+    localStorage.setItem('openfun_tokens', JSON.stringify(tokens));
+    
+    showAlert(`Launched ${name}! Mint: ${shortAddr(result.mint)}`, 'success');
+    
+    // Clear form
+    document.getElementById('launchName').value = '';
+    document.getElementById('launchSymbol').value = '';
+    document.getElementById('launchImage').value = '';
+    
+    showPage('home');
+    loadTokens();
+    
+  } catch(e) {
+    showAlert('Launch error: ' + e.message, 'error');
+  }
+}
+
+// ============ HOLDINGS ============
+async function loadHoldings() {
+  const list = document.getElementById('holdingsList');
+  if (!walletAddress) {
+    list.innerHTML = '<div class="empty-state">Connect wallet to see holdings</div>';
+    return;
+  }
+  
+  list.innerHTML = '<div class="empty-state">Loading...</div>';
+  
+  try {
+    // Get token accounts from Helius
+    const resp = await fetch(HELIUS_RPC, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        jsonrpc: '2.0', id: 1,
+        method: 'getTokenAccountsByOwner',
+        params: [walletAddress, {programId: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'}, {encoding: 'jsonParsed'}]
+      })
+    });
+    const data = await resp.json();
+    const accounts = data.result?.value || [];
+    
+    if (accounts.length === 0) {
+      list.innerHTML = '<div class="empty-state">No tokens yet</div>';
+      return;
+    }
+    
+    list.innerHTML = '';
+    accounts.forEach(acc => {
+      const info = acc.account.data.parsed.info;
+      const mint = info.mint;
+      const amount = parseInt(info.tokenAmount.amount) / Math.pow(10, info.tokenAmount.decimals);
+      if (amount > 0) {
+        const div = document.createElement('div');
+        div.className = 'trade-box';
+        div.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <p style="font-size:14px;font-weight:700">${shortAddr(mint)}</p>
+              <p style="color:#888;font-size:12px;margin-top:4px">${amount.toLocaleString()} tokens</p>
+            </div>
+            <button class="ca-copy" onclick="showTokenDetailByMint('${mint}')">VIEW</button>
+          </div>
+        `;
+        list.appendChild(div);
+      }
+    });
+  } catch(e) {
+    list.innerHTML = '<div class="empty-state">Error loading holdings</div>';
+  }
+}
+
+function showTokenDetailByMint(mint) {
+  const token = tokens.find(t => t.mint === mint);
+  if (token) showTokenDetail(token);
+  else showAlert('Token not found in launches', 'error');
+}
+
+// ============ VIP ============
+function updateVIP() {
+  const el = document.getElementById('profileVIP');
+  if (trades >= 10) {
+    el.textContent = 'UNLOCKED';
+    el.style.color = '#22c55e';
+  } else {
+    el.textContent = `LOCKED (${trades}/10 trades)`;
+    el.style.color = '#ef4444';
+  }
+}
+
+// ============ INIT ============
+loadTokens();
+updateVIP();
+
+// Auto-connect if previously connected
+if (window.phantom?.solana?.isConnected) {
+  connectWallet();
+} else if (window.solflare?.solana?.isConnected) {
+  connectWallet();
+}
+</script>
+</body>
+</html>

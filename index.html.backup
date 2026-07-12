@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>OPENFUN</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:#0a0a0a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;min-height:100vh;padding-bottom:80px}
+.header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #1a1a1a;position:sticky;top:0;background:#0a0a0a;z-index:50}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-icon{width:32px;height:32px;position:relative}
+.logo-icon .layer{position:absolute;width:100%;height:8px;background:#a78bfa;border-radius:2px;left:0}
+.logo-icon .layer:nth-child(1){top:0;opacity:0.9}
+.logo-icon .layer:nth-child(2){top:10px;opacity:0.6;width:80%;left:10%}
+.logo-icon .layer:nth-child(3){top:20px;opacity:0.3;width:60%;left:20%}
+.logo-text{font-size:20px;font-weight:800;color:#a78bfa;letter-spacing:3px}
+.wallet-btn{background:#a78bfa;color:#000;border:none;padding:10px 18px;border-radius:20px;font-weight:700;font-size:13px;cursor:pointer}
+.wallet-btn.connected{background:#1a1a1a;color:#a78bfa;border:1px solid #a78bfa}
+.page{display:none;padding:16px}
+.page.active{display:block}
+.section-title{font-size:14px;font-weight:700;color:#a78bfa;text-transform:uppercase;letter-spacing:2px;margin:24px 0 16px;display:flex;align-items:center;gap:8px}
+.section-title .dot{width:8px;height:8px;background:#a78bfa;border-radius:50%;display:inline-block}
+.token-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.token-card{background:#141414;border:1px solid #222;border-radius:20px;overflow:hidden;cursor:pointer;position:relative}
+.token-card:hover{border-color:#a78bfa}
+.token-img-wrap{position:relative;width:100%;height:160px;overflow:hidden;background:#1a1a1a}
+.token-card img{width:100%;height:100%;object-fit:cover}
+.token-tag{position:absolute;top:10px;right:10px;padding:4px 12px;border-radius:8px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px}
+.token-tag.hot{background:#a78bfa;color:#fff}
+.token-tag.trending{background:#22c55e;color:#000}
+.token-tag.new{background:#22c55e;color:#000}
+.token-info{padding:14px}
+.token-name{font-size:17px;font-weight:800;margin-bottom:4px}
+.token-symbol{font-size:14px;color:#a78bfa;font-weight:700;margin-bottom:8px}
+.token-price{font-size:16px;font-weight:700;color:#22c55e;margin-bottom:4px}
+.token-mcap{font-size:13px;color:#888}
+.empty-state{text-align:center;padding:60px 20px;color:#666;font-size:15px}
+.empty-state-icon{font-size:48px;margin-bottom:16px}
+
+/* Launch */
+.launch-card{background:#141414;border:1px solid #222;border-radius:20px;padding:20px}
+.launch-label{font-size:12px;color:#888;text-transform:uppercase;font-weight:700;letter-spacing:1px;margin-bottom:8px;margin-top:16px}
+.launch-label:first-child{margin-top:0}
+.launch-input{width:100%;background:#0a0a0a;border:1px solid #333;border-radius:16px;padding:16px;color:#fff;font-size:16px;outline:none}
+.launch-input:focus{border-color:#a78bfa}
+.file-input-wrapper{position:relative;overflow:hidden;border:2px dashed #333;border-radius:16px;padding:30px;text-align:center;cursor:pointer;transition:border-color .2s}
+.file-input-wrapper:hover{border-color:#a78bfa}
+.file-input-wrapper input[type=file]{position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.file-preview{display:none;margin-top:12px;border-radius:12px;overflow:hidden;border:1px solid #333}
+.file-preview img{width:100%;max-height:200px;object-fit:cover}
+.file-text{color:#888;font-size:14px}
+.file-text span{color:#a78bfa;font-weight:700}
+.supply-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.supply-btn{background:#0a0a0a;border:1px solid #333;border-radius:12px;padding:14px;text-align:center;font-size:14px;font-weight:700;cursor:pointer;color:#fff}
+.supply-btn.selected{background:#a78bfa;color:#000;border-color:#a78bfa}
+.launch-btn{width:100%;background:#a78bfa;color:#000;border:none;padding:18px;border-radius:16px;font-size:17px;font-weight:800;cursor:pointer;margin-top:24px;text-transform:uppercase;letter-spacing:1px}
+
+/* Profile */
+.profile-card{background:#141414;border:1px solid #222;border-radius:20px;padding:20px;margin-bottom:16px}
+.profile-wallet{font-family:monospace;font-size:13px;color:#a78bfa;text-align:center;word-break:break-all;margin-bottom:12px}
+.profile-balance{font-size:40px;font-weight:800;text-align:center;margin-bottom:20px}
+.stats-row{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px}
+.stat-box{background:#0a0a0a;border:1px solid #222;border-radius:16px;padding:16px;text-align:center}
+.stat-label{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:1px;font-weight:700}
+.stat-value{font-size:28px;font-weight:800;margin-top:6px}
+.vip-btn{width:100%;background:#a78bfa;color:#000;border:none;padding:16px;border-radius:16px;font-size:16px;font-weight:800;cursor:pointer;text-transform:uppercase}
+.vip-btn:disabled{background:#222;color:#666;cursor:not-allowed}
+.fee-row{display:flex;justify-content:space-between;align-items:center;padding:16px 0}
+.fee-row:first-child{padding-top:0}
+.fee-row:last-child{padding-bottom:0}
+.fee-label{font-size:14px;color:#888;text-transform:uppercase}
+.fee-value{font-size:20px;font-weight:700}
+
+/* Detail */
+.detail-header{display:flex;gap:16px;align-items:center;margin-bottom:20px}
+.detail-img{width:80px;height:80px;border-radius:20px;object-fit:cover;background:#1a1a1a;border:1px solid #333}
+.detail-title h2{font-size:26px;font-weight:800}
+.detail-title p{font-size:15px;color:#a78bfa;font-weight:700;margin-top:4px}
+.bonding-card{background:#141414;border:1px solid #222;border-radius:20px;padding:20px;margin-bottom:16px}
+.bc-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.bc-title{font-size:13px;font-weight:700;color:#a78bfa;text-transform:uppercase;letter-spacing:2px}
+.bc-status{font-size:12px;color:#22c55e;font-weight:700;background:#22c55e15;padding:6px 14px;border-radius:10px}
+.bc-stats{display:grid;grid-template-columns:repeat(3,1fr);text-align:center;gap:12px;margin-bottom:20px}
+.bc-stat-label{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:1px;font-weight:700}
+.bc-stat-value{font-size:22px;font-weight:800;margin-top:8px}
+.bc-chart{height:160px;background:#0a0a0a;border-radius:16px;position:relative;overflow:hidden;border:1px solid #222;margin-bottom:16px}
+.bc-chart svg{position:absolute;bottom:0;left:0;width:100%;height:100%}
+.bc-info{text-align:center;font-size:14px;color:#888;padding:12px;background:#0a0a0a;border-radius:12px}
+.bc-info span{color:#a78bfa;font-weight:700}
+.trade-card{background:#141414;border:1px solid #222;border-radius:20px;padding:20px}
+.trade-label{font-size:13px;font-weight:700;color:#a78bfa;text-transform:uppercase;letter-spacing:2px;margin-bottom:16px}
+.trade-input{width:100%;background:#0a0a0a;border:1px solid #333;border-radius:16px;padding:16px;color:#fff;font-size:16px;margin-bottom:12px;outline:none}
+.trade-input:focus{border-color:#a78bfa}
+.trade-btn{width:100%;padding:16px;border:none;border-radius:16px;font-size:17px;font-weight:800;cursor:pointer;margin-bottom:10px;text-transform:uppercase;letter-spacing:1px}
+.buy-btn{background:#22c55e;color:#000}
+.sell-btn{background:#ef4444;color:#fff}
+.ca-row{display:flex;justify-content:space-between;align-items:center;padding:14px;background:#0a0a0a;border-radius:12px;margin-top:12px}
+.ca-text{font-family:monospace;font-size:13px;color:#a78bfa}
+.ca-copy{background:#1a1a1a;border:1px solid #444;color:#fff;padding:8px 16px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer}
+
+/* Bottom Nav */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#0a0a0a;border-top:1px solid #1a1a1a;display:flex;justify-content:space-around;padding:8px 0;z-index:100}
+.bottom-nav button{background:none;border:none;color:#666;font-size:11px;font-weight:700;text-transform:uppercase;cursor:pointer;padding:8px 16px;letter-spacing:1px;position:relative}
+.bottom-nav button.active{color:#a78bfa}
+.bottom-nav button.active::after{content:'';position:absolute;bottom:-8px;left:20%;right:20%;height:3px;background:#a78bfa;border-radius:2px}
+
+/* Alert */
+.alert{position:fixed;top:20px;left:20px;right:20px;background:#1a1a1a;border:1px solid #333;border-radius:16px;padding:16px;z-index:200;display:none;font-size:14px;text-align:center;max-width:400px;margin:0 auto}
+.alert.show{display:block}
+.alert.error{border-color:#ef4444;color:#ef4444}
+.alert.success{border-color:#22c55e;color:#22c55e}
+.alert.info{border-color:#a78bfa;color:#a78bfa}
+
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:#0a0a0a}
+::-webkit-scrollbar-thumb{background:#333;border-radius:2px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">
+    <div class="logo-icon">
+      <div class="layer"></div>
+      <div class="layer"></div>
+      <div class="layer"></div>
+    </div>
+    <span class="logo-text">OPENFUN</span>
+  </div>
+  <button class="wallet-btn" id="walletBtn" onclick="toggleWallet()">CONNECT</button>
+</div>
+
+<div id="alertBox" class="alert"></div>
+
+<!-- HOME -->
+<div id="pageHome" class="page active">
+  <div class="section-title">TRENDING <span class="dot"></span></div>
+  <div class="token-grid" id="trendingGrid">
+    <div class="empty-state" style="grid-column:1/-1">
+      <div class="empty-state-icon">📊</div>
+      No trending tokens yet
+    </div>
+  </div>
+  
+  <div class="section-title">NEW LAUNCHES</div>
+  <div class="token-grid" id="newLaunchesGrid"></div>
+</div>
+
+<!-- HOLDINGS -->
+<div id="pageHoldings" class="page">
+  <div class="section-title">YOUR HOLDINGS</div>
+  <div id="holdingsList">
+    <div class="empty-state">
+      <div class="empty-state-icon">👛</div>
+      Connect wallet to see holdings
+    </div>
+  </div>
+</div>
+
+<!-- LAUNCH -->
+<div id="pageLaunch" class="page">
+  <div class="section-title">LAUNCH TOKEN</div>
+  <div class="launch-card">
+    <div class="launch-label">Token Name</div>
+    <input type="text" class="launch-input" id="launchName" placeholder="e.g. Bibi Coin" maxlength="32">
+    
+    <div class="launch-label">Symbol</div>
+    <input type="text" class="launch-input" id="launchSymbol" placeholder="e.g. BIBI" maxlength="10">
+    
+    <div class="launch-label">Token Image</div>
+    <div class="file-input-wrapper" onclick="document.getElementById('launchFile').click()">
+      <input type="file" id="launchFile" accept="image/*" onchange="handleFile(this)">
+      <div class="file-text" id="fileText"><span>Click to upload</span> or drag image here</div>
+      <div class="file-preview" id="filePreview"><img id="previewImg"></div>
+    </div>
+    
+    <div class="launch-label">Total Supply</div>
+    <div class="supply-grid">
+      <div class="supply-btn" data-value="100000000" onclick="selectSupply(this)">100M</div>
+      <div class="supply-btn" data-value="500000000" onclick="selectSupply(this)">500M</div>
+      <div class="supply-btn selected" data-value="1000000000" onclick="selectSupply(this)">1B</div>
+      <div class="supply-btn" data-value="5000000000" onclick="selectSupply(this)">5B</div>
+      <div class="supply-btn" data-value="10000000000" onclick="selectSupply(this)">10B</div>
+      <div class="supply-btn" data-value="100000000000" onclick="selectSupply(this)">100B</div>
+    </div>
+    
+    <button class="launch-btn" onclick="launchToken()">LAUNCH TOKEN</button>
+  </div>
+</div>
+
+<!-- PROFILE -->
+<div id="pageProfile" class="page">
+  <div class="section-title">PROFILE</div>
+  
+  <div class="profile-card">
+    <div class="profile-wallet" id="profileWallet">Not connected</div>
+    <div class="profile-balance" id="profileBalance">0 SOL</div>
+    
+    <div class="stats-row">
+      <div class="stat-box">
+        <div class="stat-label">TRADES</div>
+        <div class="stat-value" id="tradeCount">0</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">LAUNCHED</div>
+        <div class="stat-value" id="launchCount">0</div>
+      </div>
+    </div>
+    
+    <button class="vip-btn" id="vipBtn" onclick="enterVIP()" disabled>ENTER VIP</button>
+  </div>
+  
+  <div class="profile-card">
+    <div class="fee-row">
+      <span class="fee-label">CREATOR FEES TOTAL</span>
+      <span class="fee-value" id="creatorFees">0.0000 SOL</span>
+    </div>
+    <button class="launch-btn" onclick="claimFees()" style="margin-top:0">CLAIM</button>
+  </div>
+</div>
+
+<!-- DETAIL -->
+<div id="pageDetail" class="page">
+  <div id="detailContent"></div>
+</div>
+
+<div class="bottom-nav">
+  <button class="active" onclick="navTo('home')">HOME</button>
+  <button onclick="navTo('holdings')">HOLDINGS</button>
+  <button onclick="navTo('launch')">LAUNCH</button>
+  <button onclick="navTo('profile')">PROFILE</button>
+</div>
+
+<script>
+const BACKEND_URL='https://web-production-770c05.up.railway.app';
+const JUPITER_API='https://quote-api.jup.ag/v6';
+const HELIUS_RPC='https://devnet.helius-rpc.com/?api-key=3b40bb84-eb28-4b1e-9cdb-cc93fb602326';
+const TREASURY='7cTdE23rMWkTNwtc1WLSDZSAzQSzBPmnpBLHtgG9oGFt';
+const TARGET_SOL=85;
+const VIP_THRESHOLD=10;
+let wallet=null;
+let walletAddress=null;
+let tokens=JSON.parse(localStorage.getItem('openfun_tokens')||'[]');
+let trades=parseInt(localStorage.getItem('openfun_trades')||'0');
+let creatorFees=parseFloat(localStorage.getItem('openfun_fees')||'0');
+let selectedSupply=1000000000;
+let selectedFile=null;
+
+function showAlert(msg,type){const box=document.getElementById('alertBox');box.textContent=msg;box.className='alert show '+(type||'');setTimeout(()=>box.className='alert',4000)}
+function shortAddr(addr){return addr?addr.slice(0,4)+'...'+addr.slice(-4):''}
+function formatNum(n){if(n>=1e9)return(n/1e9).toFixed(2)+'B';if(n>=1e6)return(n/1e6).toFixed(2)+'M';if(n>=1e3)return(n/1e3).toFixed(2)+'K';return n.toFixed(4)}
+function formatPrice(n){if(n<0.001)return n.toExponential(2);return n.toFixed(6)}
+
+async function toggleWallet(){if(wallet){wallet=null;walletAddress=null;document.getElementById('walletBtn').textContent='CONNECT';document.getElementById('walletBtn').classList.remove('connected');document.getElementById('profileWallet').textContent='Not connected';showAlert('Disconnected','info');return}const provider=window.phantom?.solana||window.solflare?.solana||window.backpack?.solana;if(!provider){showAlert('Install Phantom, Solflare, or Backpack','error');return}try{const resp=await provider.connect();wallet=provider;walletAddress=resp.publicKey.toString();document.getElementById('walletBtn').textContent=shortAddr(walletAddress);document.getElementById('walletBtn').classList.add('connected');document.getElementById('profileWallet').textContent=walletAddress;updateProfile();loadHoldings();showAlert('Wallet connected','success')}catch(e){showAlert('Connect failed','error')}}
+
+function navTo(page){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.bottom-nav button').forEach(b=>b.classList.remove('active'));const pages={home:0,holdings:1,launch:2,profile:3};const ids={home:'pageHome',holdings:'pageHoldings',launch:'pageLaunch',profile:'pageProfile'};if(page==='detail'){document.getElementById('pageDetail').classList.add('active')}else{document.getElementById(ids[page]).classList.add('active');document.querySelectorAll('.bottom-nav button')[pages[page]].classList.add('active')}if(page==='home')loadTokens();if(page==='holdings')loadHoldings();if(page==='profile')updateProfile()}
+
+function handleFile(input){const file=input.files[0];if(!file)return;selectedFile=file;const reader=new FileReader();reader.onload=function(e){document.getElementById('previewImg').src=e.target.result;document.getElementById('filePreview').style.display='block';document.getElementById('fileText').innerHTML='<span>Image selected</span> '+file.name};reader.readAsDataURL(file)}
+
+function selectSupply(el){document.querySelectorAll('.supply-btn').forEach(b=>b.classList.remove('selected'));el.classList.add('selected');selectedSupply=parseInt(el.dataset.value)}
+
+function createTokenCard(token){const div=document.createElement('div');div.className='token-card';div.onclick=()=>showTokenDetail(token);const img=token.image||`https://placehold.co/400x400/8b5cf6/ffffff?text=${token.symbol}`;const price=token.price?formatPrice(token.price):'$0.00';const mcap=token.mcap_usd?formatNum(token.mcap_usd):'$0';div.innerHTML=`<div class="token-img-wrap"><img src="${img}" onerror="this.src='https://placehold.co/400x400/333/fff?text=${token.symbol}'"><span class="token-tag new">NEW</span></div><div class="token-info"><div class="token-name">${token.name}</div><div class="token-symbol">${token.symbol}</div><div class="token-price">$${price}</div><div class="token-mcap">MCap: ${mcap}</div></div>`;return div}
+
+function loadTokens(){const launches=document.getElementById('newLaunchesGrid');launches.innerHTML='';const saved=JSON.parse(localStorage.getItem('openfun_tokens')||'[]');if(saved.length===0){launches.innerHTML='<div class="empty-state" style="grid-column:1/-1"><div class="empty-state-icon">🚀</div>No launches yet. Be the first!</div>';return}saved.forEach(token=>launches.appendChild(createTokenCard(token)))}
+
+function showTokenDetail(token){navTo('detail');const content=document.getElementById('detailContent');const img=token.image||`https://placehold.co/400x400/8b5cf6/ffffff?text=${token.symbol}`;const price=token.price?formatPrice(token.price):'$0.00';const mcap=token.mcap_usd?formatNum(token.mcap_usd):'$0';const bonded=token.virtual_sol?token.virtual_sol.toFixed(2):'0.50';const progress=token.bonded_progress||((token.virtual_sol||0.5)/TARGET_SOL*100);const isGraduated=progress>=100;content.innerHTML=`<div class="detail-header"><img src="${img}" class="detail-img" onerror="this.src='https://placehold.co/400x400/333/fff?text=${token.symbol}'"><div class="detail-title"><h2>${token.name}</h2><p>${token.symbol}</p></div></div><div class="bonding-card"><div class="bc-header"><span class="bc-title">BONDING CURVE</span><span class="bc-status">${isGraduated?'GRADUATED':'ACTIVE'}</span></div><div class="bc-stats"><div><div class="bc-stat-label">PRICE</div><div class="bc-stat-value">$${price}</div></div><div><div class="bc-stat-label">MCAP</div><div class="bc-stat-value">${mcap}</div></div><div><div class="bc-stat-label">HOLDERS</div><div class="bc-stat-value">${token.holders||1}</div></div></div><div class="bc-chart"><svg viewBox="0 0 100 50" preserveAspectRatio="none"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#a78bfa" stop-opacity="0.3"/><stop offset="100%" stop-color="#a78bfa" stop-opacity="0"/></linearGradient></defs><path d="M0,50 Q25,45 50,30 T100,0 L100,50 Z" fill="url(#g)"/><path d="M0,50 Q25,45 50,30 T100,0" fill="none" stroke="#a78bfa" stroke-width="0.5"/></svg></div><div class="bc-info">Progress: <span>${progress.toFixed(1)}%</span> | Bonded: <span>${bonded} SOL</span> | Target: <span>${TARGET_SOL} SOL</span></div></div><div class="trade-card"><div class="trade-label">BUY ${token.symbol}</div><input type="number" class="trade-input" id="buyAmount" placeholder="SOL amount" step="0.001" min="0.001"><button class="trade-btn buy-btn" onclick="buyToken('${token.mint}')">BUY</button><button class="trade-btn sell-btn" onclick="sellToken('${token.mint}')">SELL</button><div class="ca-row"><span class="ca-text">${shortAddr(token.mint)}</span><button class="ca-copy" onclick="copyCA('${token.mint}')">COPY CA</button></div></div><div style="margin-top:16px;text-align:center"><a href="https://dexscreener.com/solana/${token.mint}?cluster=devnet" target="_blank" style="color:#a78bfa;font-size:14px;text-decoration:none;font-weight:700">View on DexScreener →</a></div>`}
+
+function copyCA(ca){navigator.clipboard.writeText(ca);showAlert('Contract address copied!','success')}
+
+async function buyToken(mint){if(!wallet){showAlert('Connect wallet first','error');return}const amount=parseFloat(document.getElementById('buyAmount').value);if(!amount||amount<=0){showAlert('Enter SOL amount','error');return}try{showAlert('Getting Jupiter quote...','info');const quoteUrl=`${JUPITER_API}/quote?inputMint=So11111111111111111111111111111111111111112&outputMint=${mint}&amount=${Math.floor(amount*1e9)}&slippageBps=100&onlyDirectRoutes=true`;const quoteResp=await fetch(quoteUrl);const quote=await quoteResp.json();if(quote.error){showAlert('No route found: '+quote.error,'error');return}const swapBody={quoteResponse:quote,userPublicKey:walletAddress,wrapAndUnwrapSol:true,prioritizationFeeLamports:10000};const swapResp=await fetch(`${JUPITER_API}/swap`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(swapBody)});const swapData=await swapResp.json();if(!swapData.swapTransaction){showAlert('Swap failed','error');return}const txBase64=swapData.swapTransaction;const txBinary=atob(txBase64);const txBytes=new Uint8Array(txBinary.length);for(let i=0;i<txBinary.length;i++)txBytes[i]=txBinary.charCodeAt(i);const signed=await wallet.signTransaction(txBytes);let signedBase64;if(typeof signed==='string')signedBase64=signed;else if(signed instanceof Uint8Array){const bin=Array.from(signed,b=>String.fromCharCode(b)).join('');signedBase64=btoa(bin)}else signedBase64=signed;const sendResp=await fetch(HELIUS_RPC,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'sendTransaction',params:[signedBase64,{encoding:'base64',skipPreflight:false,preflightCommitment:'confirmed'}]})});const sendResult=await sendResp.json();if(sendResult.error){showAlert('Tx failed: '+(sendResult.error.message||sendResult.error),'error');return}trades++;localStorage.setItem('openfun_trades',trades);updateProfile();showAlert('Bought! Tx: '+shortAddr(sendResult.result),'success');loadHoldings()}catch(e){showAlert('Buy error: '+e.message,'error');console.error(e)}}
+
+async function sellToken(mint){if(!wallet){showAlert('Connect wallet first','error');return}showAlert('Sell: Use Jupiter directly for now','info')}
+
+async function launchToken(){const name=document.getElementById('launchName').value.trim();const symbol=document.getElementById('launchSymbol').value.trim().toUpperCase();if(!name||!symbol){showAlert('Name and symbol required','error');return}let imageBase64='';if(selectedFile){const reader=new FileReader();reader.readAsDataURL(selectedFile);await new Promise(r=>reader.onload=r);imageBase64=reader.result}try{showAlert('Launching token...','info');const resp=await fetch(`${BACKEND_URL}/launch`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,symbol,supply:selectedSupply,image_url:imageBase64})});const result=await resp.json();if(!result.success){showAlert('Launch failed: '+(result.error?.message||JSON.stringify(result.error)),'error');return}tokens.push(result);localStorage.setItem('openfun_tokens',JSON.stringify(tokens));const fee=(result.virtual_sol||0.5)*0.01;creatorFees+=fee;localStorage.setItem('openfun_fees',creatorFees);showAlert('Launched '+name+'!','success');document.getElementById('launchName').value='';document.getElementById('launchSymbol').value='';document.getElementById('launchFile').value='';document.getElementById('filePreview').style.display='none';document.getElementById('fileText').innerHTML='<span>Click to upload</span> or drag image here';selectedFile=null;navTo('home')}catch(e){showAlert('Launch error: '+e.message,'error')}}
+
+async function loadHoldings(){const list=document.getElementById('holdingsList');if(!walletAddress){list.innerHTML='<div class="empty-state"><div class="empty-state-icon">👛</div>Connect wallet to see holdings</div>';return}list.innerHTML='<div class="empty-state"><div class="empty-state-icon">⏳</div>Loading...</div>';try{const resp=await fetch(HELIUS_RPC,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'getTokenAccountsByOwner',params:[walletAddress,{programId:'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'},{encoding:'jsonParsed'}]})});const data=await resp.json();const accounts=data.result?.value||[];if(accounts.length===0){list.innerHTML='<div class="empty-state"><div class="empty-state-icon">📭</div>No tokens yet</div>';return}let html='';for(const acc of accounts){const info=acc.account.data.parsed.info;const mint=info.mint;const amount=parseInt(info.tokenAmount.amount)/Math.pow(10,info.tokenAmount.decimals);if(amount<=0)continue;const token=tokens.find(t=>t.mint===mint);const name=token?token.name:'Unknown';const symbol=token?token.symbol:shortAddr(mint);const img=token?token.image:`https://placehold.co/400x400/333/fff?text=${symbol}`;html+=`<div class="token-card" style="margin-bottom:12px" onclick="showTokenDetailByMint('${mint}')"><div class="token-img-wrap" style="height:100px"><img src="${img}" onerror="this.src='https://placehold.co/400x400/333/fff?text=${symbol}'"></div><div class="token-info"><div class="token-name">${name}</div><div class="token-symbol">${formatNum(amount)} ${symbol}</div></div></div>`}list.innerHTML=html||'<div class="empty-state"><div class="empty-state-icon">📭</div>No tokens yet</div>'}catch(e){list.innerHTML='<div class="empty-state"><div class="empty-state-icon">❌</div>Error loading</div>'}}
+
+function showTokenDetailByMint(mint){const token=tokens.find(t=>t.mint===mint);if(token)showTokenDetail(token);else showAlert('Token not found','error')}
+
+function updateProfile(){document.getElementById('tradeCount').textContent=trades;document.getElementById('launchCount').textContent=tokens.length;document.getElementById('creatorFees').textContent=creatorFees.toFixed(4)+' SOL';const vipBtn=document.getElementById('vipBtn');if(trades>=VIP_THRESHOLD){vipBtn.disabled=false;vipBtn.textContent='ENTER VIP'}else{vipBtn.disabled=true;vipBtn.textContent='ENTER VIP'}if(walletAddress){fetch(HELIUS_RPC,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'getBalance',params:[walletAddress]})}).then(r=>r.json()).then(d=>{const bal=(d.result?.value||0)/1e9;document.getElementById('profileBalance').textContent=bal.toFixed(4)+' SOL'}).catch(()=>{})}}
+
+function enterVIP(){if(trades<VIP_THRESHOLD){showAlert('Need '+(VIP_THRESHOLD-trades)+' more trades','error');return}showAlert('Welcome to VIP Lounge!','success')}
+
+function claimFees(){if(creatorFees<=0){showAlert('No fees to claim','error');return}showAlert('Claimed '+creatorFees.toFixed(4)+' SOL!','success');creatorFees=0;localStorage.setItem('openfun_fees',0);updateProfile()}
+
+function init(){loadTokens();updateProfile();if(window.phantom?.solana?.isConnected||window.solflare?.solana?.isConnected)toggleWallet()}
+init();
+</script>
+</body>
+</html>
