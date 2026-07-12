@@ -4,8 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>OPENFUN</title>
-  <script src="https://cdn.jsdelivr.net/npm/buffer@6.0.3/index.min.js"></script>
-  <script>window.Buffer = window.buffer.Buffer;</script>
   <script src="https://unpkg.com/@solana/web3.js@1.87.6/lib/index.iife.min.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
@@ -56,7 +54,7 @@
     .token-detail-header img{width:64px;height:64px;border-radius:12px;object-fit:cover;background:#1a1a1a}
     .token-detail-info h1{font-size:20px;font-weight:900;color:#fff;text-transform:uppercase}
     .token-detail-info .symbol{color:#a78bfa;font-weight:700;font-size:14px}
-    .token-stats{display:grid;grid-template-columns:repeat(2,1fr));gap:10px;margin-bottom:20px}
+    .token-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px}
     .stat-card{background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:12px}
     .stat-card .label{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px;font-weight:700}
     .stat-card .value{font-size:16px;font-weight:800;color:#fff;margin-top:4px}
@@ -94,7 +92,7 @@
     .wallet-info{text-align:center;margin-bottom:20px}
     .wallet-info p:first-child{font-size:13px;color:#a78bfa;font-weight:700;word-break:break-all}
     .wallet-info p:last-child{font-size:24px;font-weight:900;color:#fff;margin-top:8px}
-    .stats-grid{display:grid;grid-template-columns:repeat(2,1fr));gap:10px;margin-bottom:20px}
+    .stats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px}
     .stat-box{background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:14px;text-align:center}
     .stat-label{display:block;font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:4px}
     .stat-value{display:block;font-size:20px;font-weight:900;color:#fff}
@@ -126,12 +124,11 @@
     .curve-container{background:#141414;border:1px solid #333;border-radius:16px;padding:20px;margin-bottom:20px}
     .curve-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
     .curve-header h3{font-size:14px;color:#a78bfa;text-transform:uppercase;letter-spacing:1px}
-    .curve-stats{display:grid;grid-template-columns:repeat(3,1fr));gap:10px;margin-bottom:16px}
+    .curve-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
     .curve-stat{text-align:center}
     .curve-stat .label{font-size:10px;color:#888;text-transform:uppercase;font-weight:700}
     .curve-stat .value{font-size:16px;font-weight:800;color:#fff}
     .curve-chart{height:150px;background:#0a0a0a;border-radius:8px;position:relative;overflow:hidden}
-    .curve-line{position:absolute;bottom:0;left:0;right:0;height:100%}
     .curve-progress{position:absolute;bottom:0;left:0;height:4px;background:#a78bfa;transition:width .3s}
     .bonding-info{background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:12px;margin-top:12px}
     .bonding-info p{font-size:11px;color:#888;text-align:center}
@@ -299,6 +296,20 @@
 
   <script>
 
+    // ============ CUSTOM BUFFER HELPER (no external dep) ============
+    function toBuffer(arr) {
+      if (arr instanceof Uint8Array) return arr;
+      if (Array.isArray(arr)) return new Uint8Array(arr);
+      if (typeof arr === 'string') {
+        // base64 decode
+        const binary = atob(arr);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        return bytes;
+      }
+      return new Uint8Array(arr);
+    }
+
     // ============ CONFIG ============
     const NETWORK = 'https://mainnet.helius-rpc.com/?api-key=3b40bb84-eb28-4b1e-9cdb-cc93fb602326';
     const connection = new solanaWeb3.Connection(NETWORK, 'confirmed');
@@ -311,10 +322,9 @@
     const MINT_SIZE = 82;
     const TOKEN_ACCOUNT_SIZE = 165;
     const VIRTUAL_SOL = 30;
-    const VIRTUAL_TOKENS = 1073000000;
     const GRADUATION_SOL = 85;
-    const PLATFORM_FEE_BPS = 100; // 1%
-    const CREATOR_FEE_BPS = 100;  // 1%
+    const PLATFORM_FEE_BPS = 100;
+    const CREATOR_FEE_BPS = 100;
 
     let currentWallet = null;
     let currentPublicKey = null;
@@ -438,7 +448,7 @@
       }
     }
 
-    // ============ RAW SPL INSTRUCTIONS ============
+    // ============ RAW SPL INSTRUCTIONS (NO BUFFER DEP) ============
     function createInitializeMintInstruction(mint, decimals, mintAuthority, freezeAuthority) {
       const hasFreeze = freezeAuthority !== null && freezeAuthority !== undefined;
       const data = new Uint8Array(hasFreeze ? 68 : 35);
@@ -459,7 +469,7 @@
           { pubkey: RENT_SYSVAR, isSigner: false, isWritable: false }
         ],
         programId: TOKEN_PROGRAM_ID,
-        data: Buffer.from(data)
+        data: data
       });
     }
 
@@ -475,7 +485,7 @@
           { pubkey: authority, isSigner: true, isWritable: false }
         ],
         programId: TOKEN_PROGRAM_ID,
-        data: Buffer.from(data)
+        data: data
       });
     }
 
@@ -491,7 +501,7 @@
           { pubkey: RENT_SYSVAR, isSigner: false, isWritable: false }
         ],
         programId: ASSOCIATED_TOKEN_PROGRAM_ID,
-        data: Buffer.from([])
+        data: new Uint8Array(0)
       });
     }
 
@@ -502,7 +512,6 @@
       );
       return address;
     }
-
 
     // ============ TOKEN LAUNCH ============
     async function launchToken() {
@@ -547,7 +556,6 @@
         tx.recentBlockhash = blockhash;
         tx.feePayer = currentPublicKey;
 
-        // 1. Create mint account
         tx.add(SystemProgram.createAccount({
           fromPubkey: currentPublicKey,
           newAccountPubkey: mintPubkey,
@@ -556,13 +564,8 @@
           programId: TOKEN_PROGRAM_ID
         }));
 
-        // 2. Initialize mint
         tx.add(createInitializeMintInstruction(mintPubkey, decimals, currentPublicKey, null));
-
-        // 3. Create ATA
         tx.add(createAssociatedTokenAccountInstruction(currentPublicKey, ata, currentPublicKey, mintPubkey));
-
-        // 4. Mint full supply to ATA
         tx.add(createMintToInstruction(mintPubkey, ata, currentPublicKey, totalSupply));
 
         tx.partialSign(mintKeypair);
@@ -579,7 +582,6 @@
         statusEl.textContent = 'Confirming...';
         await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
 
-        // Handle image
         let imageData = null;
         if (imageFile) {
           imageData = await new Promise((resolve) => {
@@ -589,10 +591,8 @@
           });
         }
 
-        // Bonding curve params
-        const virtualSol = VIRTUAL_SOL;
         const virtualTokens = Math.floor(supplyRaw * 0.7931);
-        const k = virtualSol * virtualTokens;
+        const k = VIRTUAL_SOL * virtualTokens;
 
         const tokenData = {
           mint: mintPubkey.toString(),
@@ -603,13 +603,13 @@
           creator: currentPublicKey.toString(),
           createdAt: Date.now(),
           signature: sig,
-          virtualSol,
+          virtualSol: VIRTUAL_SOL,
           virtualTokens,
           k,
           realSol: 0,
           realTokens: supplyRaw,
           graduated: false,
-          price: virtualTokens / virtualSol
+          price: virtualTokens / VIRTUAL_SOL
         };
         platformTokens.unshift(tokenData);
         localStorage.setItem('openfun_tokens', JSON.stringify(platformTokens));
@@ -644,7 +644,6 @@
       const trendingContainer = document.getElementById('trendingTokens');
       const newContainer = document.getElementById('newTokens');
 
-      // TRENDING: Platform tokens sorted by activity (realSol collected)
       const trending = [...platformTokens].sort((a, b) => (b.realSol || 0) - (a.realSol || 0)).slice(0, 10);
       if (trending.length === 0) {
         trendingContainer.className = 'token-grid empty';
@@ -663,7 +662,6 @@
         `).join('');
       }
 
-      // NEW LAUNCHES
       if (platformTokens.length === 0) {
         newContainer.innerHTML = '<div class="token-grid empty"><p class="empty-msg">NO LAUNCHES YET</p></div>';
       } else {
@@ -687,7 +685,7 @@
       return n.toFixed(2);
     }
 
-    // ============ TOKEN DETAIL WITH BONDING CURVE ============
+    // ============ TOKEN DETAIL ============
     async function showTokenDetail(mint) {
       showPage('tokenDetailPage');
       const container = document.getElementById('tokenDetailContent');
@@ -699,7 +697,6 @@
         return;
       }
 
-      // Calculate bonding curve progress
       const progress = Math.min(((t.realSol || 0) / GRADUATION_SOL) * 100, 100);
       const currentPrice = t.k / (t.virtualSol + (t.realSol || 0));
       const mcap = currentPrice * t.supply;
@@ -722,27 +719,13 @@
               </span>
             </div>
             <div class="curve-stats">
-              <div class="curve-stat">
-                <div class="label">PRICE</div>
-                <div class="value">$${currentPrice.toFixed(8)}</div>
-              </div>
-              <div class="curve-stat">
-                <div class="label">MARKET CAP</div>
-                <div class="value">$${formatNumber(mcap)}</div>
-              </div>
-              <div class="curve-stat">
-                <div class="label">BONDED SOL</div>
-                <div class="value">${(t.realSol || 0).toFixed(2)} / ${GRADUATION_SOL}</div>
-              </div>
+              <div class="curve-stat"><div class="label">PRICE</div><div class="value">$${currentPrice.toFixed(8)}</div></div>
+              <div class="curve-stat"><div class="label">MARKET CAP</div><div class="value">$${formatNumber(mcap)}</div></div>
+              <div class="curve-stat"><div class="label">BONDED SOL</div><div class="value">${(t.realSol || 0).toFixed(2)} / ${GRADUATION_SOL}</div></div>
             </div>
             <div class="curve-chart">
               <svg viewBox="0 0 300 150" preserveAspectRatio="none" style="width:100%;height:100%">
-                <defs>
-                  <linearGradient id="curveGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="#a78bfa" stop-opacity="0.3"/>
-                    <stop offset="100%" stop-color="#a78bfa" stop-opacity="0"/>
-                  </linearGradient>
-                </defs>
+                <defs><linearGradient id="curveGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#a78bfa" stop-opacity="0.3"/><stop offset="100%" stop-color="#a78bfa" stop-opacity="0"/></linearGradient></defs>
                 <path d="M0,150 Q75,120 150,80 T300,10 L300,150 Z" fill="url(#curveGrad)"/>
                 <path d="M0,150 Q75,120 150,80 T300,10" fill="none" stroke="#a78bfa" stroke-width="2"/>
                 <line x1="${progress * 3}" y1="0" x2="${progress * 3}" y2="150" stroke="#22c55e" stroke-width="2" stroke-dasharray="4"/>
@@ -750,9 +733,7 @@
             </div>
             <div class="curve-progress" style="width:${progress}%"></div>
             <div class="bonding-info">
-              <p>Progress: <span>${progress.toFixed(1)}%</span> | 
-              Virtual SOL: <span>${t.virtualSol}</span> | 
-              Graduation at: <span>${GRADUATION_SOL} SOL</span></p>
+              <p>Progress: <span>${progress.toFixed(1)}%</span> | Virtual SOL: <span>${t.virtualSol}</span> | Graduation: <span>${GRADUATION_SOL} SOL</span></p>
               <p style="margin-top:4px">Fee: <span>2%</span> (1% Platform + 1% Creator)</p>
             </div>
           </div>
@@ -783,8 +764,7 @@
       alert('Copied!');
     }
 
-
-    // ============ BUY/SELL VIA JUPITER ============
+    // ============ JUPITER BUY ============
     async function buyToken(mint) {
       if (!currentPublicKey) { alert('Connect wallet!'); return; }
       const amount = document.getElementById('buyAmount').value;
@@ -802,12 +782,10 @@
         const quote = await quoteResp.json();
         if (quote.error) throw new Error(quote.error);
 
-        // Apply 2% fee
         const feeSol = parseFloat(amount) * 0.02;
         const netAmount = parseFloat(amount) - feeSol;
         const netLamports = Math.floor(netAmount * 1e9);
 
-        // Re-quote with net amount
         const quoteResp2 = await fetch(
           `https://quote-api.jup.ag/v6/quote?inputMint=So11111111111111111111111111111111111111112&outputMint=${mint}&amount=${netLamports}&slippageBps=50`
         );
@@ -825,8 +803,8 @@
         const swapData = await swapResp.json();
         if (swapData.error) throw new Error(swapData.error);
 
-        const swapTxBuf = Buffer.from(swapData.swapTransaction, 'base64');
-        const tx = Transaction.from(swapTxBuf);
+        // Use web3.js Transaction.from with base64 string directly
+        const tx = Transaction.from(swapData.swapTransaction);
 
         btn.textContent = 'SIGNING...';
         const signed = await currentWallet.signTransaction(tx);
@@ -838,22 +816,17 @@
         });
         await connection.confirmTransaction(sig, 'confirmed');
 
-        // Update token stats
         const token = platformTokens.find(t => t.mint === mint);
         if (token) {
           token.realSol = (token.realSol || 0) + netAmount;
           token.price = token.k / (token.virtualSol + token.realSol);
-          if (token.realSol >= GRADUATION_SOL && !token.graduated) {
-            token.graduated = true;
-          }
+          if (token.realSol >= GRADUATION_SOL && !token.graduated) token.graduated = true;
           localStorage.setItem('openfun_tokens', JSON.stringify(platformTokens));
         }
 
-        // Record trade
         tradeCount++;
         localStorage.setItem('openfun_trades', tradeCount.toString());
 
-        // Record creator fee
         const creatorFee = feeSol * 0.5;
         creatorFees += creatorFee;
         localStorage.setItem('openfun_fees', creatorFees.toString());
@@ -869,8 +842,6 @@
     }
 
     async function sellToken(mint) {
-      alert('Sell via Jupiter Swap - select output as SOL');
-      // Redirect to Jupiter with pre-filled token
       window.open(`https://jup.ag/swap/${mint}-SOL`, '_blank');
     }
 
