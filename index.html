@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>OPENFUN</title>
   <script src="https://unpkg.com/@solana/web3.js@1.87.6/lib/index.iife.min.js"></script>
+  <script src="https://unpkg.com/@solana/spl-token@0.3.9/lib/index.iife.min.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#e5e5e5;min-height:100vh;padding-bottom:80px;-webkit-font-smoothing:antialiased}
@@ -282,20 +283,25 @@
   </nav>
 
   <script>
+
+    // ============ CONFIG ============
     const NETWORK = 'https://mainnet.helius-rpc.com/?api-key=3b40bb84-eb28-4b1e-9cdb-cc93fb602326';
     const connection = new solanaWeb3.Connection(NETWORK, 'confirmed');
+    const { PublicKey, Transaction, SystemProgram, Keypair } = solanaWeb3;
+    const splToken = window.splToken;
     let currentWallet = null;
     let currentPublicKey = null;
 
-    const TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
-    const ASSOCIATED_TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
+    // ============ STATE ============
+    let platformTokens = JSON.parse(localStorage.getItem('openfun_tokens') || '[]');
+    let tradeCount = parseInt(localStorage.getItem('openfun_trades') || '0');
+    let creatorFees = parseFloat(localStorage.getItem('openfun_fees') || '0');
 
+    // ============ WALLET DETECTION ============
     const WALLETS = [
       { name: 'Phantom', id: 'phantom', icon: 'https://phantom.app/img/phantom-icon-purple.png' },
       { name: 'Solflare', id: 'solflare', icon: 'https://solflare.com/assets/logo-icon.png' },
-      { name: 'Backpack', id: 'backpack', icon: 'https://backpack.app/assets/logo.png' },
-      { name: 'Slope', id: 'slope', icon: 'https://slope.finance/assets/logo.png' },
-      { name: 'Coin98', id: 'coin98', icon: 'https://coin98.com/assets/logo.png' }
+      { name: 'Backpack', id: 'backpack', icon: 'https://backpack.app/assets/logo.png' }
     ];
 
     function detectWallets() {
@@ -303,13 +309,26 @@
       if (window.solana && window.solana.isPhantom) available.push(WALLETS[0]);
       if (window.solflare) available.push(WALLETS[1]);
       if (window.backpack) available.push(WALLETS[2]);
-      if (window.slope) available.push(WALLETS[3]);
-      if (window.coin98) available.push(WALLETS[4]);
-      if (available.length === 0) return WALLETS;
-      return available;
+      return available.length ? available : WALLETS;
     }
 
+    // ============ PAGE NAVIGATION ============
+    function showPage(pageId) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      const page = document.getElementById(pageId);
+      if (page) page.classList.add('active');
+      const navBtn = document.querySelector(`.nav-btn[data-page="${pageId}"]`);
+      if (navBtn) navBtn.classList.add('active');
+      
+      if (pageId === 'homePage') loadHomeData();
+      if (pageId === 'profilePage') loadProfile();
+      if (pageId === 'holdingsPage') loadHoldings();
+    }
+
+    // ============ WALLET MODAL ============
     function showWalletModal() {
+      if (currentWallet) { disconnectWallet(); return; }
       const modal = document.getElementById('walletModal');
       const list = document.getElementById('walletList');
       const wallets = detectWallets();
@@ -334,29 +353,28 @@
           case 'phantom': provider = window.solana; break;
           case 'solflare': provider = window.solflare; break;
           case 'backpack': provider = window.backpack; break;
-          case 'slope': provider = window.slope; break;
-          case 'coin98': provider = window.coin98; break;
         }
         if (!provider) {
-          alert('Please install ' + walletId.charAt(0).toUpperCase() + walletId.slice(1) + ' wallet extension');
+          alert('Please install ' + walletId + ' wallet extension');
           return;
         }
         const resp = await provider.connect();
-        currentPublicKey = resp.publicKey.toString();
+        currentPublicKey = new PublicKey(resp.publicKey.toString());
         currentWallet = provider;
         localStorage.setItem('openfun_wallet', walletId);
-        localStorage.setItem('openfun_pubkey', currentPublicKey);
+        localStorage.setItem('openfun_pubkey', currentPublicKey.toString());
         updateWalletUI();
-        await updateBalance();
-        if (typeof loadHoldings === 'function') loadHoldings();
-      } catch (err) {
-        console.error('Wallet connection failed:', err);
-        alert('Connection failed: ' + err.message);
+        showPage('homePage');
+      } catch (e) {
+        console.error('Connect error:', e);
+        alert('Failed to connect wallet: ' + e.message);
       }
     }
 
     function disconnectWallet() {
-      if (currentWallet && currentWallet.disconnect) currentWallet.disconnect();
+      if (currentWallet && currentWallet.disconnect) {
+        currentWallet.disconnect();
+      }
       currentWallet = null;
       currentPublicKey = null;
       localStorage.removeItem('openfun_wallet');
@@ -367,593 +385,577 @@
     function updateWalletUI() {
       const btn = document.getElementById('walletBtn');
       if (currentPublicKey) {
-        btn.textContent = currentPublicKey.slice(0, 4) + '...' + currentPublicKey.slice(-4);
+        btn.textContent = currentPublicKey.toString().slice(0, 4) + '...' + currentPublicKey.toString().slice(-4);
         btn.classList.add('connected');
-        btn.onclick = disconnectWallet;
-        const profileWallet = document.getElementById('profileWallet');
-        if (profileWallet) profileWallet.textContent = currentPublicKey;
       } else {
         btn.textContent = 'CONNECT WALLET';
         btn.classList.remove('connected');
-        btn.onclick = showWalletModal;
-        const profileWallet = document.getElementById('profileWallet');
-        if (profileWallet) profileWallet.textContent = 'NOT CONNECTED';
       }
     }
 
-    async function updateBalance() {
-      if (!currentPublicKey) return;
+    async function getBalance() {
+      if (!currentPublicKey) return 0;
       try {
-        const pubKey = new solanaWeb3.PublicKey(currentPublicKey);
-        const balance = await connection.getBalance(pubKey);
-        const solBalance = balance / solanaWeb3.LAMPORTS_PER_SOL;
-        const profileBalance = document.getElementById('profileBalance');
-        if (profileBalance) profileBalance.textContent = solBalance.toFixed(4) + ' SOL';
-      } catch (err) {
-        console.error('Balance fetch failed:', err);
-      }
+        const bal = await connection.getBalance(currentPublicKey);
+        return bal / 1e9;
+      } catch (e) { return 0; }
     }
 
-    async function autoReconnect() {
+    // ============ AUTO-RECONNECT ============
+    async function autoConnect() {
       const savedWallet = localStorage.getItem('openfun_wallet');
       const savedPubkey = localStorage.getItem('openfun_pubkey');
       if (savedWallet && savedPubkey) {
-        let provider = null;
-        switch(savedWallet) {
-          case 'phantom': provider = window.solana; break;
-          case 'solflare': provider = window.solflare; break;
-          case 'backpack': provider = window.backpack; break;
-          case 'slope': provider = window.slope; break;
-          case 'coin98': provider = window.coin98; break;
-        }
-        if (provider && provider.isConnected) {
-          currentWallet = provider;
-          currentPublicKey = savedPubkey;
-          updateWalletUI();
-          await updateBalance();
-        }
-      }
-    }
-
-    function getWalletPubkey() {
-      return currentPublicKey;
-    }
-
-    async function signAndSendTransaction(transaction, additionalSigners) {
-      if (!currentWallet || !currentPublicKey) throw new Error('Wallet not connected');
-      const pubKey = new solanaWeb3.PublicKey(currentPublicKey);
-      transaction.feePayer = pubKey;
-      const { blockhash } = await connection.getLatestBlockhash();
-      transaction.recentBlockhash = blockhash;
-      if (additionalSigners && additionalSigners.length > 0) {
-        transaction.partialSign(...additionalSigners);
-      }
-      const signed = await currentWallet.signTransaction(transaction);
-      const signature = await connection.sendRawTransaction(signed.serialize(), {
-        maxRetries: 3,
-        skipPreflight: false
-      });
-      await connection.confirmTransaction(signature, 'confirmed');
-      return signature;
-    }
-
-    async function getAssociatedTokenAddress(mint, owner) {
-      const [address] = await solanaWeb3.PublicKey.findProgramAddress(
-        [owner.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), mint.toBuffer()],
-        ASSOCIATED_TOKEN_PROGRAM_ID
-      );
-      return address;
-    }
-
-    function createInitializeMintInstruction(mint, decimals, mintAuthority, freezeAuthority, programId) {
-      const keys = [{ pubkey: mint, isSigner: false, isWritable: true }];
-      const mintAuthBytes = mintAuthority.toBytes();
-      const data = new Uint8Array(68);
-      data[0] = 0;
-      data[1] = decimals;
-      data[2] = 1;
-      data.set(mintAuthBytes, 3);
-      if (freezeAuthority) {
-        data[35] = 1;
-        data.set(freezeAuthority.toBytes(), 36);
-        return new solanaWeb3.TransactionInstruction({ keys, programId, data: data.slice(0, 68) });
-      } else {
-        data[35] = 0;
-        return new solanaWeb3.TransactionInstruction({ keys, programId, data: data.slice(0, 36) });
-      }
-    }
-
-    function createAssociatedTokenAccountInstruction(payer, associatedToken, owner, mint, programId, associatedProgramId) {
-      const keys = [
-        { pubkey: payer, isSigner: true, isWritable: true },
-        { pubkey: associatedToken, isSigner: false, isWritable: true },
-        { pubkey: owner, isSigner: false, isWritable: false },
-        { pubkey: mint, isSigner: false, isWritable: false },
-        { pubkey: solanaWeb3.SystemProgram.programId, isSigner: false, isWritable: false },
-        { pubkey: programId, isSigner: false, isWritable: false }
-      ];
-      return new solanaWeb3.TransactionInstruction({ keys, programId: associatedProgramId, data: new Uint8Array(0) });
-    }
-
-    function createMintToInstruction(mint, destination, authority, amount, programId) {
-      const keys = [
-        { pubkey: mint, isSigner: false, isWritable: true },
-        { pubkey: destination, isSigner: false, isWritable: true },
-        { pubkey: authority, isSigner: true, isWritable: false }
-      ];
-      const data = new Uint8Array(9);
-      data[0] = 7;
-      const view = new DataView(data.buffer);
-      const bigAmount = typeof amount === 'bigint' ? amount : BigInt.asUintN(64, BigInt(amount));
-      view.setBigUint64(1, bigAmount, true);
-      return new solanaWeb3.TransactionInstruction({ keys, programId, data });
-    }
-
-    function base64ToUint8Array(base64) {
-      const binary = atob(base64);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) {
-        bytes[i] = binary.charCodeAt(i);
-      }
-      return bytes;
-    }
-
-    const PLATFORM_FEE_BPS = 0;
-    const CREATOR_FEE_BPS = 100;
-    const VIP_TRADE_THRESHOLD = 10;
-    const JUPITER_API = 'https://quote-api.jup.ag/v6';
-    const DEXSCREENER_API = 'https://api.dexscreener.com/latest/dex/tokens';
-    let platformTokens = [];
-    let userHoldings = [];
-
-    function showPage(pageId) {
-      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-      document.getElementById(pageId).classList.add('active');
-      const navBtn = document.querySelector(`.nav-btn[data-page="${pageId}"]`);
-      if (navBtn) navBtn.classList.add('active');
-      if (pageId === 'homePage') loadPlatformTokens();
-      else if (pageId === 'holdingsPage') loadHoldings();
-      else if (pageId === 'profilePage') updateProfileStats();
-    }
-
-    function loadPlatformTokens() {
-      const stored = localStorage.getItem('openfun_tokens');
-      platformTokens = stored ? JSON.parse(stored) : [];
-      renderNewTokens();
-      renderTrendingTokens();
-    }
-
-    function savePlatformTokens() {
-      localStorage.setItem('openfun_tokens', JSON.stringify(platformTokens));
-    }
-
-    function renderNewTokens() {
-      const container = document.getElementById('newTokens');
-      if (platformTokens.length === 0) {
-        container.innerHTML = '<p class="empty-msg">NO LAUNCHES YET. BE THE FIRST!</p>';
-        return;
-      }
-      const sorted = [...platformTokens].sort((a, b) => b.timestamp - a.timestamp);
-      container.innerHTML = sorted.map(token => `
-        <div class="token-card" onclick="openTokenDetail('${token.mint}')">
-          <span class="token-tag tag-new">NEW</span>
-          <img src="${token.image || 'https://via.placeholder.com/200/1a1a1a/a78bfa?text=' + token.symbol}" alt="${token.name}">
-          <div class="token-name">${token.name}</div>
-          <div class="token-symbol">$${token.symbol}</div>
-          <div class="token-price">$${(token.price || 0).toFixed(6)}</div>
-          <div class="token-mcap">MCAP: $${formatNumber(token.marketCap || 0)}</div>
-        </div>
-      `).join('');
-    }
-
-    function renderTrendingTokens() {
-      const container = document.getElementById('trendingTokens');
-      const trending = [...platformTokens]
-        .filter(t => t.volume24h > 0)
-        .sort((a, b) => (b.volume24h || 0) - (a.volume24h || 0))
-        .slice(0, 10);
-      if (trending.length === 0) {
-        container.innerHTML = '<p class="empty-msg">NO PLATFORM TOKENS YET. BE THE FIRST TO LAUNCH!</p>';
-        container.classList.add('empty');
-        return;
-      }
-      container.classList.remove('empty');
-      container.innerHTML = trending.map(token => `
-        <div class="token-card" onclick="openTokenDetail('${token.mint}')">
-          <span class="token-tag tag-hot">HOT</span>
-          <img src="${token.image || 'https://via.placeholder.com/200/1a1a1a/a78bfa?text=' + token.symbol}" alt="${token.name}">
-          <div class="token-name">${token.name}</div>
-          <div class="token-symbol">$${token.symbol}</div>
-          <div class="token-price">$${(token.price || 0).toFixed(6)}</div>
-          <div class="token-mcap">VOL: $${formatNumber(token.volume24h || 0)}</div>
-        </div>
-      `).join('');
-    }
-
-    async function openTokenDetail(mintAddress) {
-      const token = platformTokens.find(t => t.mint === mintAddress);
-      if (!token) return;
-      showPage('tokenDetailPage');
-      const content = document.getElementById('tokenDetailContent');
-      content.innerHTML = `
-        <div class="token-detail">
-          <div class="token-detail-header">
-            <img src="${token.image || 'https://via.placeholder.com/200/1a1a1a/a78bfa?text=' + token.symbol}" alt="${token.name}">
-            <div class="token-detail-info">
-              <h1>${token.name}</h1>
-              <div class="symbol">$${token.symbol}</div>
-            </div>
-          </div>
-          <div class="token-stats">
-            <div class="stat-card">
-              <div class="label">PRICE</div>
-              <div class="value" id="detailPrice">$${(token.price || 0).toFixed(6)}</div>
-            </div>
-            <div class="stat-card">
-              <div class="label">MARKET CAP</div>
-              <div class="value" id="detailMcap">$${formatNumber(token.marketCap || 0)}</div>
-            </div>
-            <div class="stat-card">
-              <div class="label">HOLDERS</div>
-              <div class="value" id="detailHolders">${token.holders || 0}</div>
-            </div>
-            <div class="stat-card">
-              <div class="label">24H VOL</div>
-              <div class="value" id="detailVol">$${formatNumber(token.volume24h || 0)}</div>
-            </div>
-          </div>
-          <div class="chart-container">
-            <iframe src="https://dexscreener.com/solana/${mintAddress}?embed=1&theme=dark&trades=0&info=0" title="DexScreener Chart"></iframe>
-          </div>
-          <div class="buy-section">
-            <h3>BUY $${token.symbol}</h3>
-            <div class="buy-input-group">
-              <input type="number" id="buyAmount" placeholder="SOL amount" min="0.001" step="0.001">
-            </div>
-            <button class="btn-buy" onclick="buyToken('${mintAddress}')">BUY NOW</button>
-            <div class="contract-box">
-              <code id="contractAddr">${mintAddress}</code>
-              <button onclick="copyContract('${mintAddress}')">COPY</button>
-            </div>
-          </div>
-        </div>
-      `;
-      fetchTokenLiveData(mintAddress);
-    }
-
-    async function fetchTokenLiveData(mintAddress) {
-      try {
-        const resp = await fetch(`${DEXSCREENER_API}/${mintAddress}`);
-        const data = await resp.json();
-        if (data.pairs && data.pairs.length > 0) {
-          const pair = data.pairs[0];
-          const priceEl = document.getElementById('detailPrice');
-          const mcapEl = document.getElementById('detailMcap');
-          const volEl = document.getElementById('detailVol');
-          if (priceEl) priceEl.textContent = '$' + parseFloat(pair.priceUsd || 0).toFixed(6);
-          if (mcapEl) mcapEl.textContent = '$' + formatNumber(pair.marketCap || pair.fdv || 0);
-          if (volEl) volEl.textContent = '$' + formatNumber(pair.volume24h || 0);
-          const idx = platformTokens.findIndex(t => t.mint === mintAddress);
-          if (idx >= 0) {
-            platformTokens[idx].price = parseFloat(pair.priceUsd || 0);
-            platformTokens[idx].marketCap = pair.marketCap || pair.fdv || 0;
-            platformTokens[idx].volume24h = pair.volume24h || 0;
-            savePlatformTokens();
+        try {
+          let provider = null;
+          if (savedWallet === 'phantom' && window.solana) provider = window.solana;
+          if (savedWallet === 'solflare' && window.solflare) provider = window.solflare;
+          if (savedWallet === 'backpack' && window.backpack) provider = window.backpack;
+          if (provider) {
+            await provider.connect({ onlyIfTrusted: true });
+            currentPublicKey = new PublicKey(savedPubkey);
+            currentWallet = provider;
+            updateWalletUI();
           }
-        }
-      } catch (err) {
-        console.error('DexScreener fetch failed:', err);
+        } catch (e) { console.log('Auto-connect failed', e); }
       }
     }
 
-    function copyContract(addr) {
-      navigator.clipboard.writeText(addr);
-      alert('Contract address copied!');
-    }
 
-    async function buyToken(mintAddress) {
-      const amountInput = document.getElementById('buyAmount');
-      const solAmount = parseFloat(amountInput?.value || 0);
-      if (!solAmount || solAmount < 0.001) {
-        alert('Enter at least 0.001 SOL');
+    // ============ TOKEN LAUNCH ============
+    async function launchToken() {
+      if (!currentPublicKey) {
+        alert('Connect wallet first!');
         return;
       }
-      const pubkey = getWalletPubkey();
-      if (!pubkey) {
-        alert('Connect wallet first');
-        showWalletModal();
-        return;
-      }
-      try {
-        const btn = document.querySelector('.btn-buy');
-        btn.textContent = 'GETTING QUOTE...';
-        btn.disabled = true;
-        const quoteResp = await fetch(
-          `${JUPITER_API}/quote?inputMint=So11111111111111111111111111111111111111112&outputMint=${mintAddress}&amount=${Math.floor(solAmount * 1e9)}&slippageBps=100`
-        );
-        const quote = await quoteResp.json();
-        if (quote.error) throw new Error(quote.error);
-        btn.textContent = 'CONFIRMING...';
-        const swapResp = await fetch(`${JUPITER_API}/swap`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            quoteResponse: quote,
-            userPublicKey: pubkey,
-            wrapAndUnwrapSol: true,
-            prioritizationFeeLamports: 10000
-          })
-        });
-        const swapData = await swapResp.json();
-        if (swapData.error) throw new Error(swapData.error);
-        btn.textContent = 'SIGNING...';
-        const txBytes = base64ToUint8Array(swapData.swapTransaction);
-        const transaction = solanaWeb3.VersionedTransaction.deserialize(txBytes);
-        const signed = await currentWallet.signTransaction(transaction);
-        btn.textContent = 'SENDING...';
-        const signature = await connection.sendRawTransaction(signed.serialize(), {
-          maxRetries: 3,
-          skipPreflight: false
-        });
-        await connection.confirmTransaction(signature, 'confirmed');
-        btn.textContent = 'BOUGHT! ✅';
-        btn.style.background = '#a78bfa';
-        recordTrade('buy', mintAddress, solAmount, signature);
-        addHolding(mintAddress, solAmount);
-        setTimeout(() => {
-          btn.textContent = 'BUY NOW';
-          btn.disabled = false;
-          btn.style.background = '';
-        }, 3000);
-      } catch (err) {
-        console.error('Buy failed:', err);
-        alert('Buy failed: ' + err.message);
-        const btn = document.querySelector('.btn-buy');
-        btn.textContent = 'BUY NOW';
-        btn.disabled = false;
-      }
-    }
 
-    document.getElementById('launchBtn')?.addEventListener('click', async () => {
-      const pubkey = getWalletPubkey();
-      if (!pubkey) {
-        alert('Connect wallet first to launch a token');
-        showWalletModal();
-        return;
-      }
       const name = document.getElementById('tokenName').value.trim();
       const symbol = document.getElementById('tokenSymbol').value.trim().toUpperCase();
       const desc = document.getElementById('tokenDesc').value.trim();
       const supplyRaw = parseInt(document.getElementById('tokenSupply').value);
       const imageFile = document.getElementById('tokenImage').files[0];
-      if (!name || !symbol) {
-        alert('Name and symbol required');
-        return;
-      }
-
-      const mintAmount = BigInt(supplyRaw) * 1000000000n;
-      const U64_MAX = 18446744073709551615n;
-      if (mintAmount > U64_MAX) {
-        alert('Supply too large for 9 decimals. Choose a smaller supply.');
-        return;
-      }
-
-      const status = document.getElementById('launchStatus');
+      const statusEl = document.getElementById('launchStatus');
       const btn = document.getElementById('launchBtn');
+
+      if (!name || !symbol) {
+        statusEl.textContent = 'Name and symbol required';
+        statusEl.className = 'launch-status error';
+        return;
+      }
+
+      btn.disabled = true;
+      statusEl.textContent = 'Preparing transaction...';
+      statusEl.className = 'launch-status loading';
+
       try {
-        btn.disabled = true;
-        status.className = 'launch-status loading';
-        status.textContent = 'CREATING SPL TOKEN...';
-        let imageUrl = '';
-        if (imageFile) imageUrl = await readFileAsDataURL(imageFile);
-        const mintKeypair = solanaWeb3.Keypair.generate();
+        // Check balance
+        const balance = await getBalance();
+        if (balance < 0.005) {
+          throw new Error('Need at least 0.005 SOL for fees');
+        }
+
+        // Generate mint keypair
+        const mintKeypair = Keypair.generate();
         const mintPubkey = mintKeypair.publicKey;
-        const ownerPubkey = new solanaWeb3.PublicKey(pubkey);
-        status.textContent = 'BUILDING TRANSACTION...';
-        const lamports = await connection.getMinimumBalanceForRentExemption(82);
-        const createAccountIx = solanaWeb3.SystemProgram.createAccount({
-          fromPubkey: ownerPubkey,
+
+        // Calculate supply with decimals
+        const decimals = 9;
+        const totalSupply = BigInt(supplyRaw) * BigInt(10 ** decimals);
+
+        // Get rent exemptions
+        const mintRent = await connection.getMinimumBalanceForRentExemption(splToken.MINT_SIZE);
+        const ataRent = await connection.getMinimumBalanceForRentExemption(splToken.ACCOUNT_SIZE);
+
+        // Get ATA for payer
+        const ata = await splToken.getAssociatedTokenAddress(
+          mintPubkey,
+          currentPublicKey,
+          false,
+          splToken.TOKEN_PROGRAM_ID,
+          splToken.ASSOCIATED_TOKEN_PROGRAM_ID
+        );
+
+        // Get recent blockhash
+        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+
+        // Build transaction
+        const tx = new Transaction();
+        tx.recentBlockhash = blockhash;
+        tx.feePayer = currentPublicKey;
+
+        // 1. Create mint account
+        tx.add(SystemProgram.createAccount({
+          fromPubkey: currentPublicKey,
           newAccountPubkey: mintPubkey,
-          space: 82,
-          lamports: lamports,
-          programId: TOKEN_PROGRAM_ID
+          space: splToken.MINT_SIZE,
+          lamports: mintRent,
+          programId: splToken.TOKEN_PROGRAM_ID
+        }));
+
+        // 2. Initialize mint
+        tx.add(splToken.createInitializeMintInstruction(
+          mintPubkey,
+          decimals,
+          currentPublicKey,
+          null,
+          splToken.TOKEN_PROGRAM_ID
+        ));
+
+        // 3. Create ATA
+        tx.add(splToken.createAssociatedTokenAccountInstruction(
+          currentPublicKey,
+          ata,
+          currentPublicKey,
+          mintPubkey,
+          splToken.TOKEN_PROGRAM_ID,
+          splToken.ASSOCIATED_TOKEN_PROGRAM_ID
+        ));
+
+        // 4. Mint full supply to ATA
+        tx.add(splToken.createMintToInstruction(
+          mintPubkey,
+          ata,
+          currentPublicKey,
+          totalSupply,
+          [],
+          splToken.TOKEN_PROGRAM_ID
+        ));
+
+        // Sign with mint keypair
+        tx.partialSign(mintKeypair);
+
+        // Send via wallet
+        statusEl.textContent = 'Signing with wallet...';
+        const signed = await currentWallet.signTransaction(tx);
+        
+        statusEl.textContent = 'Sending transaction...';
+        const sig = await connection.sendRawTransaction(signed.serialize(), {
+          skipPreflight: false,
+          preflightCommitment: 'confirmed'
         });
-        const initMintIx = createInitializeMintInstruction(mintPubkey, 9, ownerPubkey, null, TOKEN_PROGRAM_ID);
-        const associatedTokenAccount = await getAssociatedTokenAddress(mintPubkey, ownerPubkey);
-        const createATAIx = createAssociatedTokenAccountInstruction(ownerPubkey, associatedTokenAccount, ownerPubkey, mintPubkey, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
-        const mintToIx = createMintToInstruction(mintPubkey, associatedTokenAccount, ownerPubkey, mintAmount, TOKEN_PROGRAM_ID);
-        const transaction = new solanaWeb3.Transaction();
-        transaction.add(createAccountIx, initMintIx, createATAIx, mintToIx);
-        status.textContent = 'SIGNING TRANSACTION...';
-        const signature = await signAndSendTransaction(transaction, [mintKeypair]);
-        status.className = 'launch-status success';
-        status.innerHTML = `TOKEN LAUNCHED! <a href="https://solscan.io/tx/${signature}" target="_blank" style="color:#a78bfa">View TX</a>`;
-        const newToken = {
+
+        statusEl.textContent = 'Confirming...';
+        await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, 'confirmed');
+
+        // Handle image
+        let imageData = null;
+        if (imageFile) {
+          const reader = new FileReader();
+          imageData = await new Promise((resolve) => {
+            reader.onload = (e) => resolve(e.target.result);
+            reader.readAsDataURL(imageFile);
+          });
+        }
+
+        // Save token data
+        const tokenData = {
           mint: mintPubkey.toString(),
-          name: name,
-          symbol: symbol,
-          description: desc,
-          image: imageUrl,
+          name, symbol, desc,
           supply: supplyRaw,
-          creator: pubkey,
-          timestamp: Date.now(),
-          price: 0,
-          marketCap: 0,
-          volume24h: 0,
-          holders: 1,
-          txSignature: signature
+          decimals,
+          image: imageData,
+          creator: currentPublicKey.toString(),
+          createdAt: Date.now(),
+          signature: sig
         };
-        platformTokens.push(newToken);
-        savePlatformTokens();
-        recordLaunch();
+        platformTokens.unshift(tokenData);
+        localStorage.setItem('openfun_tokens', JSON.stringify(platformTokens));
+
+        // Update launch count
+        const launched = parseInt(localStorage.getItem('openfun_launched') || '0') + 1;
+        localStorage.setItem('openfun_launched', launched.toString());
+
+        statusEl.textContent = '✅ TOKEN LAUNCHED! Mint: ' + mintPubkey.toString().slice(0, 8) + '...';
+        statusEl.className = 'launch-status success';
+
+        // Clear form
         document.getElementById('tokenName').value = '';
         document.getElementById('tokenSymbol').value = '';
         document.getElementById('tokenDesc').value = '';
         document.getElementById('tokenImage').value = '';
-        btn.disabled = false;
-        setTimeout(() => {
-          showPage('homePage');
-          loadPlatformTokens();
-        }, 2000);
+
+        setTimeout(() => showPage('homePage'), 2000);
+
       } catch (err) {
-        console.error('Launch failed:', err);
-        status.className = 'launch-status error';
-        status.textContent = 'LAUNCH FAILED: ' + err.message;
+        console.error('Launch error:', err);
+        statusEl.textContent = '❌ ' + (err.message || 'Launch failed');
+        statusEl.className = 'launch-status error';
+      } finally {
         btn.disabled = false;
       }
-    });
-
-    function readFileAsDataURL(file) {
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.readAsDataURL(file);
-      });
     }
 
-    function loadHoldings() {
-      const pubkey = getWalletPubkey();
-      const container = document.getElementById('holdingsList');
-      const emptyState = document.getElementById('holdingsEmpty');
-      if (!pubkey) {
-        container.innerHTML = '';
-        emptyState.style.display = 'block';
-        emptyState.querySelector('p').textContent = 'CONNECT WALLET TO VIEW HOLDINGS';
-        return;
+    document.getElementById('launchBtn').addEventListener('click', launchToken);
+
+
+    // ============ DEXSCREENER API ============
+    async function fetchDexScreenerTrending() {
+      try {
+        // Fetch trending Solana tokens from DexScreener
+        const resp = await fetch('https://api.dexscreener.com/latest/dex/search?q=solana');
+        const data = await resp.json();
+        if (!data.pairs) return [];
+        // Sort by volume, take top 10
+        return data.pairs
+          .filter(p => p.chainId === 'solana')
+          .sort((a, b) => (b.volume?.h24 || 0) - (a.volume?.h24 || 0))
+          .slice(0, 10);
+      } catch (e) {
+        console.error('DexScreener error:', e);
+        return [];
       }
-      const stored = localStorage.getItem('openfun_holdings_' + pubkey);
-      userHoldings = stored ? JSON.parse(stored) : [];
-      if (userHoldings.length === 0) {
-        container.innerHTML = '';
-        emptyState.style.display = 'block';
-        emptyState.querySelector('p').textContent = 'NO HOLDINGS YET';
-        return;
+    }
+
+    async function fetchTokenDetails(address) {
+      try {
+        const resp = await fetch(`https://api.dexscreener.com/token-pairs/v1/solana/${address}`);
+        return await resp.json();
+      } catch (e) {
+        console.error('Token details error:', e);
+        return [];
       }
-      emptyState.style.display = 'none';
-      container.innerHTML = userHoldings.map(h => {
-        const token = platformTokens.find(t => t.mint === h.mint);
-        return `
-          <div class="token-card" onclick="openTokenDetail('${h.mint}')">
-            <img src="${token?.image || 'https://via.placeholder.com/200/1a1a1a/a78bfa?text=?'}" alt="${token?.name || 'Token'}">
-            <div class="token-name">${token?.name || 'Unknown'}</div>
-            <div class="token-symbol">$${token?.symbol || '???'}</div>
-            <div class="token-price">${h.amount.toFixed(4)} tokens</div>
-            <div class="token-mcap">Bought: ${h.solAmount.toFixed(3)} SOL</div>
+    }
+
+    // ============ HOME PAGE ============
+    async function loadHomeData() {
+      // Load platform tokens (new launches)
+      const newContainer = document.getElementById('newTokens');
+      if (platformTokens.length === 0) {
+        newContainer.innerHTML = '<div class="token-grid empty"><p class="empty-msg">NO LAUNCHES YET</p></div>';
+      } else {
+        newContainer.innerHTML = platformTokens.map(t => `
+          <div class="token-card" onclick="showTokenDetail('${t.mint}')">
+            <img src="${t.image || 'https://via.placeholder.com/200?text=' + t.symbol}" alt="${t.name}">
+            <div class="token-name">${t.name}</div>
+            <div class="token-symbol">${t.symbol}</div>
+            <div class="token-price">NEW LAUNCH</div>
+            <span class="token-tag tag-new">NEW</span>
+          </div>
+        `).join('');
+      }
+
+      // Load trending from DexScreener
+      const trendingContainer = document.getElementById('trendingTokens');
+      const trending = await fetchDexScreenerTrending();
+      
+      if (trending.length === 0 && platformTokens.length === 0) {
+        trendingContainer.className = 'token-grid empty';
+        trendingContainer.innerHTML = '<p class="empty-msg">NO PLATFORM TOKENS YET. BE THE FIRST TO LAUNCH!</p>';
+      } else if (trending.length > 0) {
+        trendingContainer.className = 'token-grid';
+        trendingContainer.innerHTML = trending.map((p, i) => `
+          <div class="token-card" onclick="showTokenDetail('${p.baseToken.address}', true)">
+            <img src="${p.info?.imageUrl || 'https://via.placeholder.com/200?text=' + p.baseToken.symbol}" alt="${p.baseToken.name}">
+            <div class="token-name">${p.baseToken.name}</div>
+            <div class="token-symbol">${p.baseToken.symbol}</div>
+            <div class="token-price">$${parseFloat(p.priceUsd || 0).toFixed(6)}</div>
+            <div class="token-mcap">MCap: $${formatNumber(p.marketCap || p.fdv || 0)}</div>
+            <span class="token-tag ${i < 3 ? 'tag-hot' : 'tag-safe'}">${i < 3 ? 'HOT' : 'TRENDING'}</span>
+          </div>
+        `).join('');
+      }
+    }
+
+    function formatNumber(n) {
+      if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
+      if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+      if (n >= 1e3) return (n / 1e3).toFixed(2) + 'K';
+      return n.toString();
+    }
+
+    // ============ TOKEN DETAIL ============
+    let currentTokenMint = null;
+    let currentTokenIsDex = false;
+
+    async function showTokenDetail(mint, isDex = false) {
+      currentTokenMint = mint;
+      currentTokenIsDex = isDex;
+      showPage('tokenDetailPage');
+      const container = document.getElementById('tokenDetailContent');
+      container.innerHTML = '<p style="text-align:center;color:#888;padding:40px;">Loading...</p>';
+
+      try {
+        let tokenData, pairs;
+        
+        if (isDex) {
+          pairs = await fetchTokenDetails(mint);
+          if (pairs.length > 0) {
+            const p = pairs[0];
+            tokenData = {
+              mint: mint,
+              name: p.baseToken.name,
+              symbol: p.baseToken.symbol,
+              price: p.priceUsd,
+              marketCap: p.marketCap || p.fdv,
+              liquidity: p.liquidity?.usd,
+              volume24h: p.volume?.h24,
+              image: p.info?.imageUrl,
+              pairAddress: p.pairAddress,
+              dexId: p.dexId
+            };
+          }
+        } else {
+          tokenData = platformTokens.find(t => t.mint === mint);
+          if (tokenData) {
+            // Try to get DexScreener data too
+            pairs = await fetchTokenDetails(mint);
+            if (pairs.length > 0) {
+              const p = pairs[0];
+              tokenData.price = p.priceUsd;
+              tokenData.marketCap = p.marketCap || p.fdv;
+              tokenData.liquidity = p.liquidity?.usd;
+              tokenData.volume24h = p.volume?.h24;
+              tokenData.pairAddress = p.pairAddress;
+            }
+          }
+        }
+
+        if (!tokenData) {
+          container.innerHTML = '<p style="text-align:center;color:#ef4444;padding:40px;">Token not found</p>';
+          return;
+        }
+
+        const price = tokenData.price ? parseFloat(tokenData.price).toFixed(6) : 'N/A';
+        const mcap = tokenData.marketCap ? formatNumber(tokenData.marketCap) : 'N/A';
+        const liq = tokenData.liquidity ? formatNumber(tokenData.liquidity) : 'N/A';
+        const vol = tokenData.volume24h ? formatNumber(tokenData.volume24h) : 'N/A';
+
+        container.innerHTML = `
+          <div class="token-detail">
+            <div class="token-detail-header">
+              <img src="${tokenData.image || 'https://via.placeholder.com/64?text=' + tokenData.symbol}" alt="${tokenData.name}">
+              <div class="token-detail-info">
+                <h1>${tokenData.name}</h1>
+                <div class="symbol">${tokenData.symbol}</div>
+              </div>
+            </div>
+            <div class="token-stats">
+              <div class="stat-card">
+                <div class="label">PRICE</div>
+                <div class="value">$${price}</div>
+              </div>
+              <div class="stat-card">
+                <div class="label">MARKET CAP</div>
+                <div class="value">$${mcap}</div>
+              </div>
+              <div class="stat-card">
+                <div class="label">LIQUIDITY</div>
+                <div class="value">$${liq}</div>
+              </div>
+              <div class="stat-card">
+                <div class="label">VOLUME 24H</div>
+                <div class="value">$${vol}</div>
+              </div>
+            </div>
+            <div class="chart-container">
+              <iframe src="https://dexscreener.com/solana/${tokenData.mint}?embed=1&theme=dark" 
+                allowfullscreen loading="lazy"></iframe>
+            </div>
+            <div class="buy-section">
+              <h3>BUY WITH JUPITER</h3>
+              <div class="buy-input-group">
+                <input type="number" id="buyAmount" placeholder="SOL amount" min="0.001" step="0.001">
+              </div>
+              <button class="btn-buy" onclick="buyWithJupiter('${tokenData.mint}')">BUY ${tokenData.symbol}</button>
+              <div class="contract-box">
+                <code id="contractAddr">${tokenData.mint}</code>
+                <button onclick="copyContract()">COPY</button>
+              </div>
+            </div>
           </div>
         `;
-      }).join('');
+      } catch (e) {
+        container.innerHTML = '<p style="text-align:center;color:#ef4444;padding:40px;">Error loading token</p>';
+      }
     }
 
-    function addHolding(mint, solAmount) {
-      const pubkey = getWalletPubkey();
-      if (!pubkey) return;
-      const existing = userHoldings.find(h => h.mint === mint);
-      if (existing) {
-        existing.amount += solAmount * 1000;
-        existing.solAmount += solAmount;
-      } else {
-        userHoldings.push({
-          mint: mint,
-          amount: solAmount * 1000,
-          solAmount: solAmount,
-          timestamp: Date.now()
+    function copyContract() {
+      const addr = document.getElementById('contractAddr').textContent;
+      navigator.clipboard.writeText(addr);
+      alert('Address copied!');
+    }
+
+
+    // ============ JUPITER BUY ============
+    async function buyWithJupiter(outputMint) {
+      if (!currentPublicKey) {
+        alert('Connect wallet first!');
+        return;
+      }
+      const amount = document.getElementById('buyAmount').value;
+      if (!amount || parseFloat(amount) <= 0) {
+        alert('Enter SOL amount');
+        return;
+      }
+
+      const btn = document.querySelector('.btn-buy');
+      btn.textContent = 'GETTING QUOTE...';
+      btn.disabled = true;
+
+      try {
+        // Step 1: Get quote from Jupiter
+        const lamports = Math.floor(parseFloat(amount) * 1e9);
+        const quoteResp = await fetch(
+          `https://quote-api.jup.ag/v6/quote?inputMint=So11111111111111111111111111111111111111112&outputMint=${outputMint}&amount=${lamports}&slippageBps=50`
+        );
+        const quote = await quoteResp.json();
+
+        if (quote.error) {
+          throw new Error(quote.error);
+        }
+
+        // Step 2: Get swap instructions
+        const swapResp = await fetch('https://quote-api.jup.ag/v6/swap', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            quoteResponse: quote,
+            userPublicKey: currentPublicKey.toString(),
+            wrapAndUnwrapSol: true,
+            dynamicComputeUnitLimit: true
+          })
         });
+        const swapData = await swapResp.json();
+
+        if (swapData.error) {
+          throw new Error(swapData.error);
+        }
+
+        // Step 3: Deserialize and sign transaction
+        const swapTxBuf = Buffer.from(swapData.swapTransaction, 'base64');
+        const tx = Transaction.from(swapTxBuf);
+
+        btn.textContent = 'SIGNING...';
+        const signed = await currentWallet.signTransaction(tx);
+
+        btn.textContent = 'SENDING...';
+        const sig = await connection.sendRawTransaction(signed.serialize(), {
+          skipPreflight: false,
+          preflightCommitment: 'confirmed'
+        });
+
+        await connection.confirmTransaction(sig, 'confirmed');
+
+        // Record trade for VIP
+        tradeCount++;
+        localStorage.setItem('openfun_trades', tradeCount.toString());
+
+        btn.textContent = '✅ BOUGHT! TX: ' + sig.slice(0, 8) + '...';
+        setTimeout(() => {
+          btn.textContent = 'BUY ' + outputMint.slice(0, 4);
+          btn.disabled = false;
+        }, 3000);
+
+      } catch (e) {
+        console.error('Buy error:', e);
+        btn.textContent = '❌ FAILED: ' + (e.message || 'Unknown error');
+        setTimeout(() => {
+          btn.textContent = 'BUY';
+          btn.disabled = false;
+        }, 3000);
       }
-      localStorage.setItem('openfun_holdings_' + pubkey, JSON.stringify(userHoldings));
     }
 
-    function recordTrade(type, mint, amount, signature) {
-      const pubkey = getWalletPubkey();
-      if (!pubkey) return;
-      const trade = { type, mint, amount, signature, timestamp: Date.now() };
-      const stored = localStorage.getItem('openfun_trades_' + pubkey);
-      const trades = stored ? JSON.parse(stored) : [];
-      trades.push(trade);
-      localStorage.setItem('openfun_trades_' + pubkey, JSON.stringify(trades));
-      checkVIPStatus();
-    }
+    // ============ PROFILE ============
+    async function loadProfile() {
+      const walletEl = document.getElementById('profileWallet');
+      const balanceEl = document.getElementById('profileBalance');
+      const tradeEl = document.getElementById('tradeCount');
+      const launchEl = document.getElementById('launchCount');
+      const vipBadge = document.getElementById('vipBadge');
+      const vipBtn = document.getElementById('vipBtn');
+      const feesEl = document.getElementById('creatorFees');
 
-    function recordLaunch() {
-      const pubkey = getWalletPubkey();
-      if (!pubkey) return;
-      const stored = localStorage.getItem('openfun_launches_' + pubkey);
-      const count = stored ? parseInt(stored) + 1 : 1;
-      localStorage.setItem('openfun_launches_' + pubkey, count.toString());
-    }
-
-    function updateProfileStats() {
-      const pubkey = getWalletPubkey();
-      if (!pubkey) {
-        document.getElementById('tradeCount').textContent = '0';
-        document.getElementById('launchCount').textContent = '0';
-        document.getElementById('creatorFees').textContent = '0 SOL';
-        document.getElementById('vipBadge').classList.add('hidden');
-        document.getElementById('vipBtn').disabled = true;
-        return;
-      }
-      const tradesStored = localStorage.getItem('openfun_trades_' + pubkey);
-      const trades = tradesStored ? JSON.parse(tradesStored) : [];
-      document.getElementById('tradeCount').textContent = trades.length;
-      const launchesStored = localStorage.getItem('openfun_launches_' + pubkey);
-      document.getElementById('launchCount').textContent = launchesStored || '0';
-      let totalFees = 0;
-      const myTokens = platformTokens.filter(t => t.creator === pubkey);
-      myTokens.forEach(token => {
-        totalFees += (token.volume24h || 0) * 0.01;
-      });
-      document.getElementById('creatorFees').textContent = totalFees.toFixed(4) + ' SOL';
-      const isVIP = trades.length >= VIP_TRADE_THRESHOLD;
-      if (isVIP) {
-        document.getElementById('vipBadge').classList.remove('hidden');
-        document.getElementById('vipBtn').disabled = false;
+      if (currentPublicKey) {
+        walletEl.textContent = currentPublicKey.toString();
+        const bal = await getBalance();
+        balanceEl.textContent = bal.toFixed(4) + ' SOL';
       } else {
-        document.getElementById('vipBadge').classList.add('hidden');
-        document.getElementById('vipBtn').disabled = true;
-        document.getElementById('vipBtn').textContent = `NEED ${VIP_TRADE_THRESHOLD - trades.length} MORE TRADES FOR VIP`;
+        walletEl.textContent = 'NOT CONNECTED';
+        balanceEl.textContent = '0 SOL';
+      }
+
+      tradeEl.textContent = tradeCount;
+      launchEl.textContent = localStorage.getItem('openfun_launched') || '0';
+      feesEl.textContent = creatorFees.toFixed(4) + ' SOL';
+
+      if (tradeCount >= 10) {
+        vipBadge.classList.remove('hidden');
+        vipBtn.disabled = false;
+      } else {
+        vipBadge.classList.add('hidden');
+        vipBtn.disabled = true;
       }
     }
 
-    function checkVIPStatus() {
-      const pubkey = getWalletPubkey();
-      if (!pubkey) return;
-      const tradesStored = localStorage.getItem('openfun_trades_' + pubkey);
-      const trades = tradesStored ? JSON.parse(tradesStored) : [];
-      if (trades.length >= VIP_TRADE_THRESHOLD) {
-        if (document.getElementById('profilePage').classList.contains('active')) {
-          updateProfileStats();
-        }
-      }
-    }
+    // ============ HOLDINGS ============
+    async function loadHoldings() {
+      const container = document.getElementById('holdingsList');
+      const emptyState = document.getElementById('holdingsEmpty');
 
-    document.getElementById('claimFeesBtn')?.addEventListener('click', async () => {
-      const pubkey = getWalletPubkey();
-      if (!pubkey) {
-        alert('Connect wallet first');
+      if (!currentPublicKey) {
+        container.innerHTML = '';
+        emptyState.style.display = 'block';
         return;
       }
-      alert('Creator fees claimed! (In production: transfers to your wallet)');
-      document.getElementById('creatorFees').textContent = '0 SOL';
-    });
 
-    function formatNumber(num) {
-      if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
-      if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
-      if (num >= 1e3) return (num / 1e3).toFixed(2) + 'K';
-      return num.toFixed(2);
+      try {
+        // Get all token accounts for this wallet
+        const tokenAccounts = await connection.getParsedTokenAccountsByOwner(
+          currentPublicKey,
+          { programId: splToken.TOKEN_PROGRAM_ID }
+        );
+
+        const holdings = tokenAccounts.value
+          .filter(acc => acc.account.data.parsed.info.tokenAmount.uiAmount > 0)
+          .map(acc => ({
+            mint: acc.account.data.parsed.info.mint,
+            amount: acc.account.data.parsed.info.tokenAmount.uiAmount,
+            decimals: acc.account.data.parsed.info.tokenAmount.decimals
+          }));
+
+        if (holdings.length === 0) {
+          container.innerHTML = '';
+          emptyState.style.display = 'block';
+          return;
+        }
+
+        emptyState.style.display = 'none';
+        container.innerHTML = holdings.map(h => `
+          <div class="token-card" onclick="showTokenDetail('${h.mint}', true)">
+            <div class="token-name">${h.mint.slice(0, 8)}...</div>
+            <div class="token-symbol">BALANCE</div>
+            <div class="token-price">${h.amount.toLocaleString()}</div>
+          </div>
+        `).join('');
+
+      } catch (e) {
+        console.error('Holdings error:', e);
+        container.innerHTML = '';
+        emptyState.style.display = 'block';
+      }
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-      document.getElementById('walletBtn').onclick = showWalletModal;
-      loadPlatformTokens();
-      updateProfileStats();
-      setTimeout(autoReconnect, 500);
-      setInterval(() => {
-        if (document.getElementById('homePage').classList.contains('active')) {
-          loadPlatformTokens();
-        }
-      }, 30000);
+    // ============ CLAIM FEES ============
+    document.getElementById('claimFeesBtn').addEventListener('click', () => {
+      if (creatorFees <= 0) {
+        alert('No fees to claim!');
+        return;
+      }
+      alert('Claimed ' + creatorFees.toFixed(4) + ' SOL!');
+      creatorFees = 0;
+      localStorage.setItem('openfun_fees', '0');
+      loadProfile();
     });
+
+    // ============ INIT ============
+    document.getElementById('walletBtn').addEventListener('click', showWalletModal);
+    
+    // Start
+    autoConnect().then(() => {
+      showPage('homePage');
+    });
+
   </script>
 </body>
 </html>
