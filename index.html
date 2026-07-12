@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>OPENFUN</title>
+  <script src="https://cdn.jsdelivr.net/npm/buffer@6.0.3/index.min.js"></script>
+  <script>window.Buffer = window.buffer.Buffer;</script>
   <script src="https://unpkg.com/@solana/web3.js@1.87.6/lib/index.iife.min.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
@@ -121,6 +123,19 @@
     ::-webkit-scrollbar-thumb{background:#333;border-radius:2px}
     @media(max-width:380px){.token-grid{grid-template-columns:repeat(2,1fr)}}
     .hidden{display:none!important}
+    .curve-container{background:#141414;border:1px solid #333;border-radius:16px;padding:20px;margin-bottom:20px}
+    .curve-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+    .curve-header h3{font-size:14px;color:#a78bfa;text-transform:uppercase;letter-spacing:1px}
+    .curve-stats{display:grid;grid-template-columns:repeat(3,1fr));gap:10px;margin-bottom:16px}
+    .curve-stat{text-align:center}
+    .curve-stat .label{font-size:10px;color:#888;text-transform:uppercase;font-weight:700}
+    .curve-stat .value{font-size:16px;font-weight:800;color:#fff}
+    .curve-chart{height:150px;background:#0a0a0a;border-radius:8px;position:relative;overflow:hidden}
+    .curve-line{position:absolute;bottom:0;left:0;right:0;height:100%}
+    .curve-progress{position:absolute;bottom:0;left:0;height:4px;background:#a78bfa;transition:width .3s}
+    .bonding-info{background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:12px;margin-top:12px}
+    .bonding-info p{font-size:11px;color:#888;text-align:center}
+    .bonding-info p span{color:#a78bfa;font-weight:700}
   </style>
 </head>
 <body>
@@ -204,7 +219,8 @@
           </select>
         </div>
         <div class="fee-info">
-          <p>LAUNCH FEE: 0% (Only Solana network tx fees apply)</p>
+          <p>LAUNCH FEE: 2% (1% Platform + 1% Creator)</p>
+          <p style="margin-top:4px">Virtual FDV: $5,000 | Virtual Liquidity: Auto</p>
         </div>
         <button id="launchBtn" class="btn-launch">LAUNCH TOKEN</button>
         <div id="launchStatus" class="launch-status"></div>
@@ -288,19 +304,20 @@
     const connection = new solanaWeb3.Connection(NETWORK, 'confirmed');
     const { PublicKey, Transaction, SystemProgram, Keypair } = solanaWeb3;
 
-    // SPL Token Program IDs
     const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
     const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
     const RENT_SYSVAR = new PublicKey('SysvarRent111111111111111111111111111111111');
 
-    // Hardcoded sizes (no external lib needed)
     const MINT_SIZE = 82;
     const TOKEN_ACCOUNT_SIZE = 165;
+    const VIRTUAL_SOL = 30;
+    const VIRTUAL_TOKENS = 1073000000;
+    const GRADUATION_SOL = 85;
+    const PLATFORM_FEE_BPS = 100; // 1%
+    const CREATOR_FEE_BPS = 100;  // 1%
 
     let currentWallet = null;
     let currentPublicKey = null;
-
-    // ============ STATE ============
     let platformTokens = JSON.parse(localStorage.getItem('openfun_tokens') || '[]');
     let tradeCount = parseInt(localStorage.getItem('openfun_trades') || '0');
     let creatorFees = parseFloat(localStorage.getItem('openfun_fees') || '0');
@@ -372,7 +389,7 @@
         showPage('homePage');
       } catch (e) {
         console.error('Connect error:', e);
-        alert('Failed to connect wallet: ' + e.message);
+        alert('Failed to connect: ' + e.message);
       }
     }
 
@@ -421,22 +438,18 @@
       }
     }
 
-
-    // ============ RAW SPL TOKEN INSTRUCTIONS ============
-    // These construct SPL Token program instructions manually using Uint8Array
-    // No external library needed - works on any browser
-
-    function createInitializeMintInstruction(mint, decimals, mintAuthority, freezeAuthority = null) {
-      // Instruction 0: InitializeMint
-      // Data: [0, decimals(1), mintAuthority(32), freezeOption(1), freezeAuthority(0 or 32)]
-      const data = new Uint8Array(freezeAuthority ? 68 : 35);
-      data[0] = 0; // discriminator
+    // ============ RAW SPL INSTRUCTIONS ============
+    function createInitializeMintInstruction(mint, decimals, mintAuthority, freezeAuthority) {
+      const hasFreeze = freezeAuthority !== null && freezeAuthority !== undefined;
+      const data = new Uint8Array(hasFreeze ? 68 : 35);
+      data[0] = 0;
       data[1] = decimals;
       const authBytes = mintAuthority.toBytes();
-      data.set(authBytes, 2);
-      if (freezeAuthority) {
+      for (let i = 0; i < 32; i++) data[2 + i] = authBytes[i];
+      if (hasFreeze) {
         data[34] = 1;
-        data.set(freezeAuthority.toBytes(), 35);
+        const freezeBytes = freezeAuthority.toBytes();
+        for (let i = 0; i < 32; i++) data[35 + i] = freezeBytes[i];
       } else {
         data[34] = 0;
       }
@@ -451,8 +464,6 @@
     }
 
     function createMintToInstruction(mint, destination, authority, amount) {
-      // Instruction 7: MintTo
-      // Data: [7, amount(u64 LE)]
       const data = new Uint8Array(9);
       data[0] = 7;
       const view = new DataView(data.buffer);
@@ -468,34 +479,7 @@
       });
     }
 
-    function createInitializeAccountInstruction(account, mint, owner) {
-      // Instruction 1: InitializeAccount
-      // Data: [1]
-      return new solanaWeb3.TransactionInstruction({
-        keys: [
-          { pubkey: account, isSigner: false, isWritable: true },
-          { pubkey: mint, isSigner: false, isWritable: false },
-          { pubkey: owner, isSigner: false, isWritable: false },
-          { pubkey: RENT_SYSVAR, isSigner: false, isWritable: false }
-        ],
-        programId: TOKEN_PROGRAM_ID,
-        data: Buffer.from([1])
-      });
-    }
-
-    async function getAssociatedTokenAddress(mint, owner) {
-      // PDA: [owner, tokenProgram, mint, associatedTokenProgram]
-      const seeds = [
-        owner.toBuffer(),
-        TOKEN_PROGRAM_ID.toBuffer(),
-        mint.toBuffer()
-      ];
-      const [address] = await PublicKey.findProgramAddress(seeds, ASSOCIATED_TOKEN_PROGRAM_ID);
-      return address;
-    }
-
     function createAssociatedTokenAccountInstruction(payer, ata, owner, mint) {
-      // Associated Token Account creation
       return new solanaWeb3.TransactionInstruction({
         keys: [
           { pubkey: payer, isSigner: true, isWritable: true },
@@ -510,6 +494,15 @@
         data: Buffer.from([])
       });
     }
+
+    async function getAssociatedTokenAddress(mint, owner) {
+      const [address] = await PublicKey.findProgramAddress(
+        [owner.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), mint.toBuffer()],
+        ASSOCIATED_TOKEN_PROGRAM_ID
+      );
+      return address;
+    }
+
 
     // ============ TOKEN LAUNCH ============
     async function launchToken() {
@@ -535,16 +528,15 @@
 
       try {
         const balance = await getBalance();
-        if (balance < 0.005) throw new Error('Need at least 0.005 SOL');
+        if (balance < 0.01) throw new Error('Need at least 0.01 SOL');
 
         const mintKeypair = Keypair.generate();
         const mintPubkey = mintKeypair.publicKey;
         const decimals = 9;
         const totalSupply = BigInt(supplyRaw) * BigInt(10 ** decimals);
 
-        statusEl.textContent = 'Getting rent exemption...';
+        statusEl.textContent = 'Getting rent...';
         const mintRent = await connection.getMinimumBalanceForRentExemption(MINT_SIZE);
-        const ataRent = await connection.getMinimumBalanceForRentExemption(TOKEN_ACCOUNT_SIZE);
 
         statusEl.textContent = 'Deriving ATA...';
         const ata = await getAssociatedTokenAddress(mintPubkey, currentPublicKey);
@@ -570,13 +562,12 @@
         // 3. Create ATA
         tx.add(createAssociatedTokenAccountInstruction(currentPublicKey, ata, currentPublicKey, mintPubkey));
 
-        // 4. Mint full supply
+        // 4. Mint full supply to ATA
         tx.add(createMintToInstruction(mintPubkey, ata, currentPublicKey, totalSupply));
 
-        // Sign with mint keypair
         tx.partialSign(mintKeypair);
 
-        statusEl.textContent = 'Signing with wallet...';
+        statusEl.textContent = 'Signing...';
         const signed = await currentWallet.signTransaction(tx);
 
         statusEl.textContent = 'Sending...';
@@ -598,6 +589,11 @@
           });
         }
 
+        // Bonding curve params
+        const virtualSol = VIRTUAL_SOL;
+        const virtualTokens = Math.floor(supplyRaw * 0.7931);
+        const k = virtualSol * virtualTokens;
+
         const tokenData = {
           mint: mintPubkey.toString(),
           name, symbol, desc,
@@ -606,7 +602,14 @@
           image: imageData,
           creator: currentPublicKey.toString(),
           createdAt: Date.now(),
-          signature: sig
+          signature: sig,
+          virtualSol,
+          virtualTokens,
+          k,
+          realSol: 0,
+          realTokens: supplyRaw,
+          graduated: false,
+          price: virtualTokens / virtualSol
         };
         platformTokens.unshift(tokenData);
         localStorage.setItem('openfun_tokens', JSON.stringify(platformTokens));
@@ -614,7 +617,7 @@
         const launched = parseInt(localStorage.getItem('openfun_launched') || '0') + 1;
         localStorage.setItem('openfun_launched', launched.toString());
 
-        statusEl.textContent = '✅ LAUNCHED! Mint: ' + mintPubkey.toString().slice(0, 8) + '...';
+        statusEl.textContent = '✅ LAUNCHED! ' + mintPubkey.toString().slice(0, 8) + '...';
         statusEl.className = 'launch-status success';
 
         document.getElementById('tokenName').value = '';
@@ -626,7 +629,7 @@
 
       } catch (err) {
         console.error('Launch error:', err);
-        statusEl.textContent = '❌ ' + (err.message || 'Launch failed');
+        statusEl.textContent = '❌ ' + (err.message || 'Failed');
         statusEl.className = 'launch-status error';
       } finally {
         btn.disabled = false;
@@ -641,26 +644,26 @@
       const trendingContainer = document.getElementById('trendingTokens');
       const newContainer = document.getElementById('newTokens');
 
-      // TRENDING: Only platform tokens, sorted by volume/activity
-      // Empty until we have real trading data
-      const trendingTokens = platformTokens.slice(0, 10);
-      if (trendingTokens.length === 0) {
+      // TRENDING: Platform tokens sorted by activity (realSol collected)
+      const trending = [...platformTokens].sort((a, b) => (b.realSol || 0) - (a.realSol || 0)).slice(0, 10);
+      if (trending.length === 0) {
         trendingContainer.className = 'token-grid empty';
         trendingContainer.innerHTML = '<p class="empty-msg">NO PLATFORM TOKENS YET. BE THE FIRST TO LAUNCH!</p>';
       } else {
         trendingContainer.className = 'token-grid';
-        trendingContainer.innerHTML = trendingTokens.map((t, i) => `
+        trendingContainer.innerHTML = trending.map((t, i) => `
           <div class="token-card" onclick="showTokenDetail('${t.mint}')">
             <img src="${t.image || 'https://via.placeholder.com/200?text=' + t.symbol}" alt="${t.name}">
             <div class="token-name">${t.name}</div>
             <div class="token-symbol">${t.symbol}</div>
-            <div class="token-price">PLATFORM</div>
-            <span class="token-tag ${i < 3 ? 'tag-hot' : 'tag-safe'}">${i < 3 ? 'HOT' : 'TRENDING'}</span>
+            <div class="token-price">${t.graduated ? '🎓 GRADUATED' : '$' + (t.price || 0).toFixed(6)}</div>
+            <div class="token-mcap">Bonded: ${(t.realSol || 0).toFixed(2)} SOL</div>
+            <span class="token-tag ${i < 3 ? 'tag-hot' : t.graduated ? 'tag-graduated' : 'tag-safe'}">${i < 3 ? 'HOT' : t.graduated ? 'GRADUATED' : 'TRENDING'}</span>
           </div>
         `).join('');
       }
 
-      // NEW LAUNCHES: All platform tokens
+      // NEW LAUNCHES
       if (platformTokens.length === 0) {
         newContainer.innerHTML = '<div class="token-grid empty"><p class="empty-msg">NO LAUNCHES YET</p></div>';
       } else {
@@ -677,62 +680,94 @@
     }
 
     function formatNumber(n) {
+      if (!n) return 'N/A';
       if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
       if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
       if (n >= 1e3) return (n / 1e3).toFixed(2) + 'K';
-      return n.toString();
+      return n.toFixed(2);
     }
 
-    // ============ TOKEN DETAIL ============
+    // ============ TOKEN DETAIL WITH BONDING CURVE ============
     async function showTokenDetail(mint) {
       showPage('tokenDetailPage');
       const container = document.getElementById('tokenDetailContent');
       container.innerHTML = '<p style="text-align:center;color:#888;padding:40px;">Loading...</p>';
 
-      const tokenData = platformTokens.find(t => t.mint === mint);
-      if (!tokenData) {
+      const t = platformTokens.find(tok => tok.mint === mint);
+      if (!t) {
         container.innerHTML = '<p style="text-align:center;color:#ef4444;padding:40px;">Token not found</p>';
         return;
       }
 
-      // Try to get DexScreener data
-      let price = 'N/A', mcap = 'N/A', liq = 'N/A', vol = 'N/A';
-      try {
-        const resp = await fetch(`https://api.dexscreener.com/token-pairs/v1/solana/${mint}`);
-        const pairs = await resp.json();
-        if (pairs && pairs.length > 0) {
-          const p = pairs[0];
-          price = p.priceUsd ? parseFloat(p.priceUsd).toFixed(6) : 'N/A';
-          mcap = p.marketCap || p.fdv ? formatNumber(p.marketCap || p.fdv) : 'N/A';
-          liq = p.liquidity?.usd ? formatNumber(p.liquidity.usd) : 'N/A';
-          vol = p.volume?.h24 ? formatNumber(p.volume.h24) : 'N/A';
-        }
-      } catch (e) { console.log('DexScreener fetch failed', e); }
+      // Calculate bonding curve progress
+      const progress = Math.min(((t.realSol || 0) / GRADUATION_SOL) * 100, 100);
+      const currentPrice = t.k / (t.virtualSol + (t.realSol || 0));
+      const mcap = currentPrice * t.supply;
 
       container.innerHTML = `
         <div class="token-detail">
           <div class="token-detail-header">
-            <img src="${tokenData.image || 'https://via.placeholder.com/64?text=' + tokenData.symbol}" alt="${tokenData.name}">
+            <img src="${t.image || 'https://via.placeholder.com/64?text=' + t.symbol}" alt="${t.name}">
             <div class="token-detail-info">
-              <h1>${tokenData.name}</h1>
-              <div class="symbol">${tokenData.symbol}</div>
+              <h1>${t.name}</h1>
+              <div class="symbol">${t.symbol}</div>
             </div>
           </div>
-          <div class="token-stats">
-            <div class="stat-card"><div class="label">PRICE</div><div class="value">$${price}</div></div>
-            <div class="stat-card"><div class="label">MARKET CAP</div><div class="value">$${mcap}</div></div>
-            <div class="stat-card"><div class="label">LIQUIDITY</div><div class="value">$${liq}</div></div>
-            <div class="stat-card"><div class="label">VOLUME 24H</div><div class="value">$${vol}</div></div>
+
+          <div class="curve-container">
+            <div class="curve-header">
+              <h3>📈 BONDING CURVE</h3>
+              <span style="color:${t.graduated ? '#22c55e' : '#a78bfa'};font-size:12px;font-weight:700">
+                ${t.graduated ? '🎓 GRADUATED' : 'ACTIVE'}
+              </span>
+            </div>
+            <div class="curve-stats">
+              <div class="curve-stat">
+                <div class="label">PRICE</div>
+                <div class="value">$${currentPrice.toFixed(8)}</div>
+              </div>
+              <div class="curve-stat">
+                <div class="label">MARKET CAP</div>
+                <div class="value">$${formatNumber(mcap)}</div>
+              </div>
+              <div class="curve-stat">
+                <div class="label">BONDED SOL</div>
+                <div class="value">${(t.realSol || 0).toFixed(2)} / ${GRADUATION_SOL}</div>
+              </div>
+            </div>
+            <div class="curve-chart">
+              <svg viewBox="0 0 300 150" preserveAspectRatio="none" style="width:100%;height:100%">
+                <defs>
+                  <linearGradient id="curveGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#a78bfa" stop-opacity="0.3"/>
+                    <stop offset="100%" stop-color="#a78bfa" stop-opacity="0"/>
+                  </linearGradient>
+                </defs>
+                <path d="M0,150 Q75,120 150,80 T300,10 L300,150 Z" fill="url(#curveGrad)"/>
+                <path d="M0,150 Q75,120 150,80 T300,10" fill="none" stroke="#a78bfa" stroke-width="2"/>
+                <line x1="${progress * 3}" y1="0" x2="${progress * 3}" y2="150" stroke="#22c55e" stroke-width="2" stroke-dasharray="4"/>
+              </svg>
+            </div>
+            <div class="curve-progress" style="width:${progress}%"></div>
+            <div class="bonding-info">
+              <p>Progress: <span>${progress.toFixed(1)}%</span> | 
+              Virtual SOL: <span>${t.virtualSol}</span> | 
+              Graduation at: <span>${GRADUATION_SOL} SOL</span></p>
+              <p style="margin-top:4px">Fee: <span>2%</span> (1% Platform + 1% Creator)</p>
+            </div>
           </div>
+
           <div class="chart-container">
             <iframe src="https://dexscreener.com/solana/${mint}?embed=1&theme=dark" allowfullscreen loading="lazy"></iframe>
           </div>
+
           <div class="buy-section">
-            <h3>BUY WITH JUPITER</h3>
+            <h3>BUY / SELL</h3>
             <div class="buy-input-group">
               <input type="number" id="buyAmount" placeholder="SOL amount" min="0.001" step="0.001">
             </div>
-            <button class="btn-buy" onclick="buyWithJupiter('${mint}', '${tokenData.symbol}')">BUY ${tokenData.symbol}</button>
+            <button class="btn-buy" onclick="buyToken('${mint}')">BUY ${t.symbol}</button>
+            <button class="btn-buy" style="margin-top:8px;background:#ef4444" onclick="sellToken('${mint}')">SELL ${t.symbol}</button>
             <div class="contract-box">
               <code id="contractAddr">${mint}</code>
               <button onclick="copyContract()">COPY</button>
@@ -745,42 +780,52 @@
     function copyContract() {
       const addr = document.getElementById('contractAddr').textContent;
       navigator.clipboard.writeText(addr);
-      alert('Address copied!');
+      alert('Copied!');
     }
 
 
-    // ============ JUPITER BUY ============
-    async function buyWithJupiter(outputMint, symbol) {
-      if (!currentPublicKey) { alert('Connect wallet first!'); return; }
+    // ============ BUY/SELL VIA JUPITER ============
+    async function buyToken(mint) {
+      if (!currentPublicKey) { alert('Connect wallet!'); return; }
       const amount = document.getElementById('buyAmount').value;
-      if (!amount || parseFloat(amount) <= 0) { alert('Enter SOL amount'); return; }
+      if (!amount || parseFloat(amount) <= 0) { alert('Enter SOL'); return; }
 
       const btn = document.querySelector('.btn-buy');
-      btn.textContent = 'GETTING QUOTE...';
+      btn.textContent = 'QUOTING...';
       btn.disabled = true;
 
       try {
         const lamports = Math.floor(parseFloat(amount) * 1e9);
         const quoteResp = await fetch(
-          `https://quote-api.jup.ag/v6/quote?inputMint=So11111111111111111111111111111111111111112&outputMint=${outputMint}&amount=${lamports}&slippageBps=50`
+          `https://quote-api.jup.ag/v6/quote?inputMint=So11111111111111111111111111111111111111112&outputMint=${mint}&amount=${lamports}&slippageBps=50`
         );
         const quote = await quoteResp.json();
         if (quote.error) throw new Error(quote.error);
+
+        // Apply 2% fee
+        const feeSol = parseFloat(amount) * 0.02;
+        const netAmount = parseFloat(amount) - feeSol;
+        const netLamports = Math.floor(netAmount * 1e9);
+
+        // Re-quote with net amount
+        const quoteResp2 = await fetch(
+          `https://quote-api.jup.ag/v6/quote?inputMint=So11111111111111111111111111111111111111112&outputMint=${mint}&amount=${netLamports}&slippageBps=50`
+        );
+        const quote2 = await quoteResp2.json();
 
         const swapResp = await fetch('https://quote-api.jup.ag/v6/swap', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            quoteResponse: quote,
+            quoteResponse: quote2,
             userPublicKey: currentPublicKey.toString(),
-            wrapAndUnwrapSol: true,
-            dynamicComputeUnitLimit: true
+            wrapAndUnwrapSol: true
           })
         });
         const swapData = await swapResp.json();
         if (swapData.error) throw new Error(swapData.error);
 
-        const swapTxBuf = Uint8Array.from(atob(swapData.swapTransaction), c => c.charCodeAt(0));
+        const swapTxBuf = Buffer.from(swapData.swapTransaction, 'base64');
         const tx = Transaction.from(swapTxBuf);
 
         btn.textContent = 'SIGNING...';
@@ -793,17 +838,40 @@
         });
         await connection.confirmTransaction(sig, 'confirmed');
 
+        // Update token stats
+        const token = platformTokens.find(t => t.mint === mint);
+        if (token) {
+          token.realSol = (token.realSol || 0) + netAmount;
+          token.price = token.k / (token.virtualSol + token.realSol);
+          if (token.realSol >= GRADUATION_SOL && !token.graduated) {
+            token.graduated = true;
+          }
+          localStorage.setItem('openfun_tokens', JSON.stringify(platformTokens));
+        }
+
+        // Record trade
         tradeCount++;
         localStorage.setItem('openfun_trades', tradeCount.toString());
 
-        btn.textContent = '✅ BOUGHT! TX: ' + sig.slice(0, 8) + '...';
-        setTimeout(() => { btn.textContent = 'BUY ' + symbol; btn.disabled = false; }, 3000);
+        // Record creator fee
+        const creatorFee = feeSol * 0.5;
+        creatorFees += creatorFee;
+        localStorage.setItem('openfun_fees', creatorFees.toString());
+
+        btn.textContent = '✅ BOUGHT! ' + sig.slice(0, 8) + '...';
+        setTimeout(() => { btn.textContent = 'BUY ' + token.symbol; btn.disabled = false; }, 3000);
 
       } catch (e) {
         console.error('Buy error:', e);
-        btn.textContent = '❌ FAILED: ' + (e.message || 'Unknown');
+        btn.textContent = '❌ ' + (e.message || 'Failed');
         setTimeout(() => { btn.textContent = 'BUY'; btn.disabled = false; }, 3000);
       }
+    }
+
+    async function sellToken(mint) {
+      alert('Sell via Jupiter Swap - select output as SOL');
+      // Redirect to Jupiter with pre-filled token
+      window.open(`https://jup.ag/swap/${mint}-SOL`, '_blank');
     }
 
     // ============ PROFILE ============
@@ -889,7 +957,7 @@
 
     // ============ CLAIM FEES ============
     document.getElementById('claimFeesBtn').addEventListener('click', () => {
-      if (creatorFees <= 0) { alert('No fees to claim!'); return; }
+      if (creatorFees <= 0) { alert('No fees!'); return; }
       alert('Claimed ' + creatorFees.toFixed(4) + ' SOL!');
       creatorFees = 0;
       localStorage.setItem('openfun_fees', '0');
